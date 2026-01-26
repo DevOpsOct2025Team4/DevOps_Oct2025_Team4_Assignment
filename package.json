@@ -1,0 +1,13 @@
+{
+  "name": "devops-assignment",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "setup": "powershell -ExecutionPolicy Bypass -File setup.ps1",
+    "dev": "pnpm -r --parallel dev",
+    "dev:client": "pnpm --filter ./client dev",
+    "dev:server": "pnpm --filter ./server dev",
+    "build": "pnpm --filter ./client build",
+    "lint": "pnpm -r lint"
+  }
+}
