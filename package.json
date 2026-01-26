@@ -3,11 +3,20 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
+    "dev": "pnpm --filter ./client dev",
     "setup": "powershell -ExecutionPolicy Bypass -File setup.ps1",
-    "dev": "pnpm -r --parallel dev",
-    "dev:client": "pnpm --filter ./client dev",
+    "start": "pnpm create-docker && pnpm --filter ./server prisma:migrate",
+    "prisma:migrate": "pnpm --filter ./server prisma:migrate",
+    "prisma:studio": "pnpm --filter ./server prisma:studio",
+    "deploy": "pnpm --filter ./server prisma:deploy",
+    "dev:all": "pnpm -r --parallel dev",
     "dev:server": "pnpm --filter ./server dev",
     "build": "pnpm --filter ./client build",
-    "lint": "pnpm -r lint"
+    "lint": "pnpm -r lint",
+    "create-local-db": "docker compose up -d db",
+    "create-docker-server": "docker compose up -d --build server",
+    "create-docker": "docker compose up -d --build",
+    "setup-db": "pnpm create-local-db && pnpm --filter ./server prisma:migrate",
+    "setup-docker": "pnpm create-docker && pnpm --filter ./server prisma:deploy"
   }
 }

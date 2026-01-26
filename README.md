@@ -1,64 +1,103 @@
 # DevOps_Oct2025_Team4_Assignment
 
-React (Vite) frontend + Express backend in a pnpm workspace.
+React (Vite) frontend + Express backend in a pnpm workspace, with Docker and Prisma.
 
 ## Prerequisites
-- Node.js 18+ (or newer)
-- pnpm installed globally (`npm i -g pnpm`)
+- Node.js 18+
+- pnpm (`npm i -g pnpm`)
+- Docker Desktop (for local DB/containers)
 
-## Setup (simple command)
+## Quick Start (local dev)
 From the repo root:
 
 ```powershell
 pnpm run setup
-```
-
-## Manual setup (optional)
-```powershell
-pnpm install
-Copy-Item server\\.env.example server\\.env
-```
-
-## Environment variables
-- Server env is loaded from `server/.env`.
-- Example env files: `server/.env.example` (server) and `.env.example` (root reference).
-
-## Run in dev mode
-Run both frontend and backend:
-
-```powershell
+pnpm start
 pnpm dev
-```
-
-Or run separately:
-
-```powershell
-pnpm dev:server
-pnpm dev:client
 ```
 
 Frontend: http://localhost:5173  
 Backend: http://localhost:5000
 
-## Lint
-Lint all packages:
+## One-command Docker + migrations
+This builds and starts the server + DB containers, then runs Prisma migrations:
 
+```powershell
+pnpm start
+```
+
+## Environment variables
+- Server env file: `server/.env`
+- Example: `server/.env.example`
+
+Local DB (host machine) default:
+```
+DATABASE_URL=postgres://app:app@localhost:5432/app
+```
+
+When the server runs inside Docker via compose, it uses:
+```
+postgres://app:app@db:5432/app
+```
+
+## Prisma
+Create/apply migrations (also generates client):
+
+```powershell
+pnpm prisma:migrate
+```
+
+Open Prisma Studio:
+
+```powershell
+pnpm prisma:studio
+```
+
+## Docker
+Start DB only:
+
+```powershell
+pnpm create-local-db
+```
+
+Start server only:
+
+```powershell
+pnpm create-docker-server
+```
+
+Start both:
+
+```powershell
+pnpm create-docker
+```
+
+## Lint
 ```powershell
 pnpm lint
 ```
 
 ## Build
-Build the frontend:
-
 ```powershell
 pnpm build
 ```
 
-## Tech Stack
-Frontend - React + Vite, Tailwind
-Backend - Node.js + Express
-Containerization - Docker
-Database - Supabase, Prisma
-CI/CD - GitHub Actions
+## Deploy (migrations only)
+Production-safe migrations:
 
-## Project Onboarding
+```powershell
+pnpm deploy
+```
+
+## Scripts (summary)
+- `pnpm setup` install deps + create `server/.env` if missing
+- `pnpm dev` run frontend + backend locally
+- `pnpm start` docker up + prisma migrate dev
+- `pnpm deploy` prisma migrate deploy
+
+## Tech Stack
+Frontend: React + Vite  
+Backend: Node.js + Express  
+Database: Postgres (local), Supabase (prod)  
+ORM: Prisma  
+Containerization: Docker + Compose
