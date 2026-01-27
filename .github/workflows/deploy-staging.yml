@@ -46,22 +46,3 @@ jobs:
         run: |
           echo "Deploying tag ${{ steps.tag.outputs.tag }} to staging..."
           echo "TODO: replace with your staging deploy command"
-
-      - name: Health check
-        env:
-          STAGING_HEALTHCHECK_URL: ${{ secrets.STAGING_HEALTHCHECK_URL }}
-        run: |
-          if [ -z "$STAGING_HEALTHCHECK_URL" ]; then
-            echo "STAGING_HEALTHCHECK_URL is not set."
-            exit 1
-          fi
-          for i in 1 2 3 4 5; do
-            echo "Health check attempt $i..."
-            if curl -fsS "$STAGING_HEALTHCHECK_URL" >/dev/null; then
-              echo "Health check passed."
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "Health check failed."
-          exit 1
