@@ -1,0 +1,23 @@
+name: PR Approval Gate & Auto-Merge
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  approval_gate:
+    runs-on: ubuntu-latest
+    needs: []
+    environment:
+      name: review
+    permissions:
+      contents: write
+      pull-requests: write
+    if: github.event.pull_request.head.ref == 'develop'
+    steps:
+      - name: Enable auto-merge (merge commit)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr merge ${{ github.event.pull_request.number }} --merge --auto

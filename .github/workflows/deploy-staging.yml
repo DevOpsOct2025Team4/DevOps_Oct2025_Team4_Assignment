@@ -1,0 +1,41 @@
+name: Deploy Staging
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to staging
+        run: |
+          echo "Deploying tag $GITHUB_REF_NAME to staging..."
+          echo "TODO: replace with your staging deploy command"
+
+      - name: Health check
+        env:
+          STAGING_HEALTHCHECK_URL: ${{ secrets.STAGING_HEALTHCHECK_URL }}
+        run: |
+          if [ -z "$STAGING_HEALTHCHECK_URL" ]; then
+            echo "STAGING_HEALTHCHECK_URL is not set."
+            exit 1
+          fi
+          for i in 1 2 3 4 5; do
+            echo "Health check attempt $i..."
+            if curl -fsS "$STAGING_HEALTHCHECK_URL" >/dev/null; then
+              echo "Health check passed."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Health check failed."
+          exit 1
