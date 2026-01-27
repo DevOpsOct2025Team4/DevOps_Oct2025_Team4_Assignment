@@ -4,10 +4,16 @@ on:
   push:
     tags:
       - "v*"
+  workflow_run:
+    workflows:
+      - Auto Tag Release
+    types:
+      - completed
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
     environment:
       name: staging
     permissions:
@@ -15,10 +21,30 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve tag
+        id: tag
+        run: |
+          git fetch --tags
+          if [ "${{ github.event_name }}" = "push" ]; then
+            TAG="$GITHUB_REF_NAME"
+          else
+            TAG=$(git tag --list "v*" --sort=-v:refname | head -n 1)
+          fi
+          if [ -z "$TAG" ]; then
+            echo "No tag found to deploy."
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout tag
+        run: git checkout "${{ steps.tag.outputs.tag }}"
 
       - name: Deploy to staging
         run: |
-          echo "Deploying tag $GITHUB_REF_NAME to staging..."
+          echo "Deploying tag ${{ steps.tag.outputs.tag }} to staging..."
           echo "TODO: replace with your staging deploy command"
 
       - name: Health check
