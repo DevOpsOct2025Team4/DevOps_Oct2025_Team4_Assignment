@@ -1,22 +1,16 @@
-FROM node:18-bullseye-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
-RUN corepack enable
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends openssl ca-certificates \
-  && rm -rf /var/lib/apt/lists/*
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-COPY pnpm-lock.yaml package.json pnpm-workspace.yaml ./
-COPY server/package.json ./server/package.json
-COPY server/prisma ./server/prisma
-
-RUN pnpm install --frozen-lockfile --filter ./server...
-RUN pnpm --filter ./server prisma:generate
+COPY server/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY server ./server
+WORKDIR /app/server
 
-ENV NODE_ENV=production
 EXPOSE 5000
 
-CMD ["pnpm", "--filter", "./server", "start"]
+CMD ["python", "app.py"]

@@ -3,6 +3,10 @@ import "./App.css";
 
 function Home() {
   const [message, setMessage] = useState("Loading...");
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [uploadResult, setUploadResult] = useState(null);
 
   useEffect(() => {
     fetch("/api/hello")
@@ -11,10 +15,73 @@ function Home() {
       .catch(() => setMessage("Failed to load message"));
   }, []);
 
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setUploadError("");
+    setUploadResult(null);
+
+    if (!file) {
+      setUploadError("Please choose a file to upload.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    setUploading(true);
+    try {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setUploadError(data.error || "Upload failed.");
+      } else {
+        setUploadResult(data);
+        setFile(null);
+      }
+    } catch (error) {
+      setUploadError("Upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <div className="app">
-      <h1>Vite + React</h1>
-      <p>Backend says: {message}</p>
+      <h1>File Upload Demo</h1>
+      <p className="subtitle">Backend says: {message}</p>
+      <form className="upload-card" onSubmit={handleSubmit}>
+        <label className="upload-label" htmlFor="file-input">
+          Choose a file to upload
+        </label>
+        <input
+          id="file-input"
+          className="upload-input"
+          type="file"
+          onChange={(event) => setFile(event.target.files?.[0] || null)}
+        />
+        <button className="upload-button" type="submit" disabled={uploading}>
+          {uploading ? "Uploading..." : "Upload to Supabase"}
+        </button>
+        {uploadError ? <p className="error">{uploadError}</p> : null}
+        {uploadResult ? (
+          <div className="upload-result">
+            <p>
+              Uploaded to <strong>{uploadResult.bucket}</strong>
+            </p>
+            <p className="mono">Path: {uploadResult.path}</p>
+            {uploadResult.url ? (
+              <a className="link" href={uploadResult.url} target="_blank" rel="noreferrer">
+                Open uploaded file
+              </a>
+            ) : (
+              <p className="muted">Bucket is private. Use the path to access.</p>
+            )}
+          </div>
+        ) : null}
+      </form>
       <a className="link" href="/health">
         View health status
       </a>
