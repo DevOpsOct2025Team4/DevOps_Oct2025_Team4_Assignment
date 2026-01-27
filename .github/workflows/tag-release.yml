@@ -16,21 +16,34 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Read version
-        id: version
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
 
-      - name: Create tag if missing
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
+      - name: Create next patch tag
         run: |
           git fetch --tags
-          TAG="v$VERSION"
+          LATEST_TAG=$(git tag --list "v*" --sort=-v:refname | head -n 1)
+          if [ -n "$LATEST_TAG" ]; then
+            BASE_VERSION="${LATEST_TAG#v}"
+          else
+            BASE_VERSION=$(node -p "require('./package.json').version")
+          fi
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
+          if [ -z "$MAJOR" ] || [ -z "$MINOR" ] || [ -z "$PATCH" ]; then
+            echo "Invalid version format: $BASE_VERSION"
+            exit 1
+          fi
+
+          NEXT_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+          TAG="v$NEXT_VERSION"
+
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "Tag $TAG already exists. Skipping."
             exit 0
           fi
+
           git tag "$TAG"
           git push origin "$TAG"
