@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to deploy (e.g. v1.2.3)
+        required: true
 
 jobs:
   deploy:
@@ -22,7 +27,11 @@ jobs:
         id: tag
         run: |
           git fetch --tags
-          TAG="$GITHUB_REF_NAME"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="$GITHUB_REF_NAME"
+          fi
           if [ -z "$TAG" ]; then
             echo "No tag found to deploy."
             exit 1
