@@ -1,4 +1,8 @@
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import Login from "./Login";
+import Dashboard from "./Dashboard";
+import AdminDashboard from "./AdminDashboard";
 import "./App.css";
 
 function Home() {
@@ -146,6 +150,16 @@ function Health() {
 }
 
 export default function App() {
-  const isHealth = window.location.pathname === "/health";
-  return isHealth ? <Health /> : <Home />;
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/health" element={<Health />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Router>
+  );
 }

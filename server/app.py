@@ -2,6 +2,7 @@ import os
 
 from dotenv import load_dotenv
 from flask import Flask
+from flask_cors import CORS
 
 from routes import api_bp
 
@@ -9,6 +10,10 @@ from routes import api_bp
 def create_app() -> Flask:
     load_dotenv()
     app = Flask(__name__)
+    
+    # Enable CORS for frontend
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    
     max_upload_mb = os.getenv("MAX_UPLOAD_MB")
     if max_upload_mb:
         try:
