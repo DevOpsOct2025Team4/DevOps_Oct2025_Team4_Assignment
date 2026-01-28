@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,6 +23,7 @@ jobs:
           node-version: "18"
 
       - name: Create next patch tag
+        id: tag
         run: |
           git fetch --tags
           BASE_VERSION=$(node -p "require('./package.json').version")
@@ -52,3 +54,11 @@ jobs:
 
           git tag "$TAG"
           git push origin "$TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger staging deploy
+        if: ${{ steps.tag.outputs.tag != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run deploy-staging.yml -f tag="${{ steps.tag.outputs.tag }}"
