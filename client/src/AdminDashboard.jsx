@@ -46,36 +46,32 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
+    <div className="min-h-screen bg-[#f5f5f5] p-8 font-sans text-slate-900">
+      <div className="mx-auto max-w-[1200px]">
+        <div className="mb-8 flex items-center justify-between">
           <h1>Admin Dashboard</h1>
-          <button onClick={handleLogout} style={{
-            padding: "0.5rem 1rem",
-            background: "#dc3545",
-            color: "white",
-            border: "none",
-            borderRadius: "5px",
-            cursor: "pointer"
-          }}>
+          <button
+            onClick={handleLogout}
+            className="cursor-pointer rounded-[5px] bg-[#dc3545] px-4 py-2 text-white"
+          >
             Logout
           </button>
         </div>
-        <div style={{ background: "#f8f9fa", padding: "1.5rem", borderRadius: "10px", marginBottom: "2rem" }}>
+        <div className="mb-8 rounded-[10px] bg-[#f8f9fa] p-6">
           <h2>Welcome, Admin {user.email}!</h2>
           <p>Role: <strong>{user.role}</strong></p>
           <p>User ID: {user.id}</p>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "1rem" }}>
-          <div style={{ background: "white", padding: "1.5rem", borderRadius: "10px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-4">
+          <div className="rounded-[10px] bg-white p-6 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
             <h3>Users</h3>
             <p>Manage system users</p>
           </div>
-          <div style={{ background: "white", padding: "1.5rem", borderRadius: "10px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
+          <div className="rounded-[10px] bg-white p-6 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
             <h3>Settings</h3>
             <p>Configure system settings</p>
           </div>
-          <div style={{ background: "white", padding: "1.5rem", borderRadius: "10px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
+          <div className="rounded-[10px] bg-white p-6 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
             <h3>Reports</h3>
             <p>View system reports</p>
           </div>
