@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,23 +23,29 @@ jobs:
           node-version: "18"
 
       - name: Create next patch tag
+        id: tag
         run: |
           git fetch --tags
-          LATEST_TAG=$(git tag --list "v*" --sort=-v:refname | head -n 1)
-          if [ -n "$LATEST_TAG" ]; then
-            BASE_VERSION="${LATEST_TAG#v}"
-          else
-            BASE_VERSION=$(node -p "require('./package.json').version")
-          fi
-
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
-          if [ -z "$MAJOR" ] || [ -z "$MINOR" ] || [ -z "$PATCH" ]; then
-            echo "Invalid version format: $BASE_VERSION"
+          BASE_VERSION=$(node -p "require('./package.json').version")
+          IFS='.' read -r MAJOR MINOR _ <<< "$BASE_VERSION"
+          if [ -z "$MAJOR" ] || [ -z "$MINOR" ]; then
+            echo "Invalid version format in package.json: $BASE_VERSION"
             exit 1
           fi
 
-          NEXT_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
-          TAG="v$NEXT_VERSION"
+          LATEST_MATCHING_TAG=$(git tag --list "v${MAJOR}.${MINOR}.*" --sort=-v:refname | head -n 1)
+          if [ -n "$LATEST_MATCHING_TAG" ]; then
+            PATCH="${LATEST_MATCHING_TAG#v${MAJOR}.${MINOR}.}"
+            if ! [[ "$PATCH" =~ ^[0-9]+$ ]]; then
+              echo "Invalid matching tag format: $LATEST_MATCHING_TAG"
+              exit 1
+            fi
+            NEXT_PATCH=$((PATCH + 1))
+          else
+            NEXT_PATCH=0
+          fi
+
+          TAG="v${MAJOR}.${MINOR}.${NEXT_PATCH}"
 
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "Tag $TAG already exists. Skipping."
@@ -47,3 +54,11 @@ jobs:
 
           git tag "$TAG"
           git push origin "$TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger staging deploy
+        if: ${{ steps.tag.outputs.tag != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run deploy-staging.yml -f tag="${{ steps.tag.outputs.tag }}"
