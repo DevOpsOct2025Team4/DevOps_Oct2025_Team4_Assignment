@@ -51,7 +51,7 @@ export default function Login() {
       <div className="login-card">
         <h1>Log In</h1>
         <p className="subtitle">Welcome back! Please enter your credentials</p>
-        
+
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor="email">Email Address</label>
@@ -65,7 +65,7 @@ export default function Login() {
               disabled={loading}
             />
           </div>
-          
+
           <div className="form-group">
             <label htmlFor="password">Password</label>
             <input
@@ -78,14 +78,14 @@ export default function Login() {
               disabled={loading}
             />
           </div>
-          
+
           {error && <div className="error-message">{error}</div>}
-          
+
           <button type="submit" disabled={loading} className="login-button">
             {loading ? "Logging in..." : "Login"}
           </button>
         </form>
-        
+
         <p className="login-footer">
           Need help? <a href="#">Contact Support</a>
         </p>

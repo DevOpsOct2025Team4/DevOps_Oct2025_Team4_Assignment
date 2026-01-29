@@ -48,13 +48,13 @@ class AuthService:
                 "error": str(e)
             }
     
-    def logout(self, access_token: str) -> Dict[str, Any]:
+    def logout(self, access_token: str, refresh_token: str) -> Dict[str, Any]:
         """
         Logout user by invalidating their session
         """
         try:
             # Set the session first
-            self.supabase.auth.set_session(access_token, access_token)
+            self.supabase.auth.set_session(access_token, refresh_token)
             self.supabase.auth.sign_out()
             return {
                 "success": True,

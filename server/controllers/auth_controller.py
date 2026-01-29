@@ -44,10 +44,13 @@ def logout():
     """
     POST /api/logout
     Headers: Authorization: Bearer <access_token>
+    Request body: { "refresh_token": "..." }
     Returns: { "success": true, "message": "Logged out successfully" }
     """
     try:
         auth_header = request.headers.get("Authorization")
+        data = request.get_json(silent=True) or {}
+        refresh_token = data.get("refresh_token")
         
         if not auth_header or not auth_header.startswith("Bearer "):
             return jsonify({
@@ -55,8 +58,14 @@ def logout():
                 "error": "No access token provided"
             }), 401
         
+        if not refresh_token:
+            return jsonify({
+                "success": False,
+                "error": "Refresh token is required"
+            }), 400
+        
         access_token = auth_header.split(" ")[1]
-        result = auth_service.logout(access_token)
+        result = auth_service.logout(access_token, refresh_token)
         
         if result["success"]:
             return jsonify(result), 200
