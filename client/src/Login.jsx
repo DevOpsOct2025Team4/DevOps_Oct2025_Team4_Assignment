@@ -17,7 +17,7 @@ export default function Login() {
     try {
       const data = await login(email, password);
 
-      if (data.success) {
+      if (data?.success) {
         const role = data.user.role;
         if (role === "admin") {
           navigate("/admin");
@@ -25,7 +25,7 @@ export default function Login() {
           navigate("/dashboard");
         }
       } else {
-        setError(data.error || "Login failed");
+        setError(data?.error || "Login failed");
       }
     } catch (err) {
       setError("An error occurred. Please try again.");

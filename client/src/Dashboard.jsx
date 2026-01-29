@@ -1,36 +1,26 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { getStoredUser, logout } from "../lib/api";
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const userData = localStorage.getItem("user");
+    const userData = getStoredUser();
     if (userData) {
-      setUser(JSON.parse(userData));
+      setUser(userData);
     } else {
       navigate("/login");
     }
   }, [navigate]);
 
   const handleLogout = async () => {
-    const token = localStorage.getItem("access_token");
-    
     try {
-      await fetch("/api/logout", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      });
+      await logout();
     } catch (err) {
       console.error("Logout error:", err);
     } finally {
-      // Clear local storage and redirect
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
-      localStorage.removeItem("user");
       navigate("/login");
     }
   };

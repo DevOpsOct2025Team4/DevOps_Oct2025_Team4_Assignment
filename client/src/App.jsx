@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Login from "./Login";
 import Dashboard from "./Dashboard";
 import AdminDashboard from "./AdminDashboard";
+import { apiRequest, getStoredUser } from "../lib/api";
 
 function Home() {
   const [message, setMessage] = useState("Loading...");
@@ -12,9 +13,8 @@ function Home() {
   const [uploadResult, setUploadResult] = useState(null);
 
   useEffect(() => {
-    fetch("/api/hello")
-      .then((res) => res.json())
-      .then((data) => setMessage(data.message))
+    apiRequest("hello", { auth: false })
+      .then(({ data }) => setMessage(data?.message || "Failed to load message"))
       .catch(() => setMessage("Failed to load message"));
   }, []);
 
@@ -33,13 +33,12 @@ function Home() {
 
     setUploading(true);
     try {
-      const response = await fetch("/api/upload", {
+      const { response, data } = await apiRequest("upload", {
         method: "POST",
         body: formData
       });
-      const data = await response.json();
-      if (!response.ok) {
-        setUploadError(data.error || "Upload failed.");
+      if (!response || response.status < 200 || response.status >= 300) {
+        setUploadError(data?.error || "Upload failed.");
       } else {
         setUploadResult(data);
         setFile(null);
@@ -121,13 +120,12 @@ function Health() {
   useEffect(() => {
     setStatus((prev) => ({ ...prev, frontend: true }));
 
-    fetch("/api/health")
-      .then((res) => res.json())
-      .then((data) => {
+    apiRequest("health", { auth: false })
+      .then(({ data }) => {
         setStatus({
           frontend: true,
           server: true,
-          database: Boolean(data.database)
+          database: Boolean(data?.database)
         });
       })
       .catch(() => {
@@ -168,6 +166,25 @@ function Health() {
   );
 }
 
+function RequireAuth({ children }) {
+  const user = getStoredUser();
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
+
+function RequireAdmin({ children }) {
+  const user = getStoredUser();
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  if (user.role !== "admin") {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return children;
+}
+
 export default function App() {
   return (
     <Router>
@@ -175,8 +192,22 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/health" element={<Health />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/admin" element={<AdminDashboard />} />
+        <Route
+          path="/dashboard"
+          element={
+            <RequireAuth>
+              <Dashboard />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <RequireAdmin>
+              <AdminDashboard />
+            </RequireAdmin>
+          }
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { getStoredUser, logout } from "../lib/api";
 
 export default function AdminDashboard() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      const parsedUser = JSON.parse(userData);
+    const parsedUser = getStoredUser();
+    if (parsedUser) {
       // Check if user has admin role
       if (parsedUser.role !== "admin") {
         navigate("/dashboard");
@@ -21,22 +21,11 @@ export default function AdminDashboard() {
   }, [navigate]);
 
   const handleLogout = async () => {
-    const token = localStorage.getItem("access_token");
-    
     try {
-      await fetch("/api/logout", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      });
+      await logout();
     } catch (err) {
       console.error("Logout error:", err);
     } finally {
-      // Clear local storage and redirect
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
-      localStorage.removeItem("user");
       navigate("/login");
     }
   };
