@@ -1,11 +1,11 @@
-name: Deep SAST (CodeQL)
+name: Post Merge Security
 # Done after a merges to main. Runs Security & Quality for CodeQL for a deep analysis.
 
 on:
   #schedule:
   # - cron: Plans to run every week. Wont be active for this assignment XXX
   push:
-    branches: [main]
+    branches: [main, develop]
 
 permissions:
   contents: read

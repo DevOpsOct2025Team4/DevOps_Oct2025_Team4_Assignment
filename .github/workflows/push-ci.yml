@@ -1,4 +1,4 @@
-name: Quiet CI
+name: Push CI (Shallow)
 
 on:
   push:
@@ -7,8 +7,8 @@ on:
       - develop
 
 jobs:
-  quiet_ci:
+  run_common:
     name: Common CI
-    uses: ./.github/workflows/Common-CI.yml
+    uses: ./.github/workflows/ci-common.yml
     with:
       upload_client_artifact: false
