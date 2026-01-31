@@ -24,7 +24,7 @@ export function hydrateSessionFromStorage() {
 
   cachedSession = {
     access_token: accessToken || null,
-    refresh_token: refreshToken || null
+    refresh_token: refreshToken || null,
   };
 
   return cachedSession;
@@ -34,7 +34,7 @@ export function setCachedSession(session) {
   cachedSession = session
     ? {
         access_token: session.access_token || null,
-        refresh_token: session.refresh_token || null
+        refresh_token: session.refresh_token || null,
       }
     : null;
 

@@ -7,12 +7,12 @@ class AuthService:
     def __init__(self):
         supabase_url = os.getenv("SUPABASE_URL")
         supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-        
+
         if not supabase_url or not supabase_key:
             raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
-        
+
         self.supabase: Client = create_client(supabase_url, supabase_key)
-    
+
     def login(self, email: str, password: str) -> Dict[str, Any]:
         """
         Authenticate user with email and password
@@ -23,7 +23,7 @@ class AuthService:
                 "email": email,
                 "password": password
             })
-            
+
             if response.user and response.session:
                 return {
                     "success": True,
@@ -47,7 +47,7 @@ class AuthService:
                 "success": False,
                 "error": str(e)
             }
-    
+
     def logout(self, access_token: str, refresh_token: str) -> Dict[str, Any]:
         """
         Logout user by invalidating their session
@@ -65,14 +65,14 @@ class AuthService:
                 "success": False,
                 "error": str(e)
             }
-    
+
     def verify_token(self, access_token: str) -> Optional[Dict[str, Any]]:
         """
         Verify access token and return user data
         """
         try:
             response = self.supabase.auth.get_user(access_token)
-            
+
             if response.user:
                 return {
                     "id": response.user.id,
@@ -82,14 +82,14 @@ class AuthService:
             return None
         except Exception:
             return None
-    
+
     def refresh_session(self, refresh_token: str) -> Dict[str, Any]:
         """
         Refresh access token using refresh token
         """
         try:
             response = self.supabase.auth.refresh_session(refresh_token)
-            
+
             if response.session:
                 return {
                     "success": True,

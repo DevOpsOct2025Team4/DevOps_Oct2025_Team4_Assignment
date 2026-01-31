@@ -43,7 +43,9 @@ export default function Dashboard() {
         </div>
         <div className="rounded-[10px] bg-[#f8f9fa] p-6">
           <h2>Welcome, {user.email}!</h2>
-          <p>Role: <strong>{user.role}</strong></p>
+          <p>
+            Role: <strong>{user.role}</strong>
+          </p>
           <p>User ID: {user.id}</p>
         </div>
       </div>

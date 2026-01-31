@@ -44,4 +44,8 @@ if (-not (Test-Path $clientEnv -PathType Leaf) -and (Test-Path $clientExample -P
   Write-Host "Created client\.env from client\.env.example"
 }
 
+pip install -r requirements-dev.txt
+pre-commit install
+pre-commit run --all-files
+
 Write-Host "Setup complete. Run: pnpm dev"

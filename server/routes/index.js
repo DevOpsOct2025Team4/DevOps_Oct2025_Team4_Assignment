@@ -20,7 +20,7 @@ router.get("/health", async (req, res) => {
 
   res.json({
     server: true,
-    database
+    database,
   });
 });
 

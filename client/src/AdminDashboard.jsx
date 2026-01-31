@@ -48,7 +48,9 @@ export default function AdminDashboard() {
         </div>
         <div className="mb-8 rounded-[10px] bg-[#f8f9fa] p-6">
           <h2>Welcome, Admin {user.email}!</h2>
-          <p>Role: <strong>{user.role}</strong></p>
+          <p>
+            Role: <strong>{user.role}</strong>
+          </p>
           <p>User ID: {user.id}</p>
         </div>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-4">

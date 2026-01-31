@@ -6,15 +6,15 @@ import {
   hydrateSessionFromStorage,
   hydrateUserFromStorage,
   setCachedSession,
-  setCachedUser
+  setCachedUser,
 } from "../features/auth/sessionCache";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "/api",
   timeout: 10000,
   headers: {
-    "Content-Type": "application/json"
-  }
+    "Content-Type": "application/json",
+  },
 });
 
 const resolveSession = () => getCachedSession() ?? hydrateSessionFromStorage();
@@ -37,7 +37,7 @@ api.interceptors.request.use(
 
     return { ...config, headers };
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 api.interceptors.response.use(
@@ -48,7 +48,7 @@ api.interceptors.response.use(
       console.error("Unauthorized - please log in");
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 function normalizePath(path) {
@@ -98,12 +98,7 @@ export function clearSession() {
 }
 
 export async function apiRequest(path, options = {}) {
-  const {
-    method = "GET",
-    headers = {},
-    body,
-    auth = true
-  } = options;
+  const { method = "GET", headers = {}, body, auth = true } = options;
 
   const url = normalizePath(path);
 
@@ -113,7 +108,7 @@ export async function apiRequest(path, options = {}) {
       method,
       headers,
       data: body,
-      skipAuth: !auth
+      skipAuth: !auth,
     });
     return { response, data: response.data };
   } catch (error) {
@@ -128,7 +123,7 @@ export async function login(email, password) {
   const { data } = await apiRequest("login", {
     method: "POST",
     auth: false,
-    body: { email, password }
+    body: { email, password },
   });
 
   if (data?.success) {
@@ -145,7 +140,7 @@ export async function logout() {
     if (refreshToken) {
       await apiRequest("logout", {
         method: "POST",
-        body: { refresh_token: refreshToken }
+        body: { refresh_token: refreshToken },
       });
     }
   } finally {
