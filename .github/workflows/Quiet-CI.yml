@@ -2,11 +2,9 @@ name: Quiet CI
 
 on:
   push:
-    branches:
-      - "**"
     branches-ignore:
-      - "main"
-      - "develop"
+      - main
+      - develop
 
 jobs:
   quiet_ci:
