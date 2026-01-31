@@ -66,6 +66,22 @@ Start both:
 pnpm create-docker
 ```
 
+## DB Studio (web UI)
+
+Start the Adminer web UI:
+
+```powershell
+pnpm dbstudio
+```
+
+Open http://localhost:8080 and connect with:
+
+- System: PostgreSQL
+- Server: db
+- Username: app
+- Password: app
+- Database: app
+
 ## Lint
 
 ```powershell

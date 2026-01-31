@@ -16,7 +16,7 @@ if config.config_file_name is not None:
 
 target_metadata = None
 try:
-    from db.base import Base
+    from db import Base
 
     target_metadata = Base.metadata
 except Exception:

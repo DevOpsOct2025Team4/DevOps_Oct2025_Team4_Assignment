@@ -6,11 +6,13 @@
     "dev": "pnpm --filter ./client dev",
     "setup": "powershell -ExecutionPolicy Bypass -File setup.ps1",
     "start": "pnpm create-docker",
+    "migrate": "powershell -ExecutionPolicy Bypass -File scripts/migrate.ps1",
     "build": "pnpm --filter ./client build",
     "lint": "pnpm --filter ./client lint && pnpm lint:server",
     "lint:server": "python -m ruff check server",
     "create-local-db": "docker compose up -d db",
     "create-docker-server": "docker compose up -d --build server",
-    "create-docker": "docker compose up -d --build"
+    "create-docker": "docker compose up -d --build",
+    "dbstudio": "docker compose up -d dbstudio && echo DB Studio: http://localhost:8080"
   }
 }

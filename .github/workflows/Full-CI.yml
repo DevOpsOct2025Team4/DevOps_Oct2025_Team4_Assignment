@@ -9,6 +9,6 @@ on:
 jobs:
   full_ci:
     name: Common CI
-    uses: ./.github/workflows/ci-common.yml
+    uses: ./.github/workflows/Common-CI.yml
     with:
       upload_client_artifact: true

@@ -34,5 +34,13 @@ services:
       timeout: 3s
       retries: 10
 
+  dbstudio:
+    image: adminer:4.8.1
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   db_data:
