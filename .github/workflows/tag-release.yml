@@ -1,4 +1,4 @@
-name: Auto Tag Release
+name: Tag Release
 
 on:
   push:

@@ -10,6 +10,7 @@
     "build": "pnpm --filter ./client build",
     "lint": "pnpm --filter ./client lint && pnpm lint:server",
     "lint:server": "python -m ruff check server",
+    "check": "pnpm lint && python -m pre_commit run --all-files",
     "create-local-db": "docker compose up -d db",
     "create-docker-server": "docker compose up -d --build server",
     "create-docker": "docker compose up -d --build",

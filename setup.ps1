@@ -57,6 +57,7 @@ if (-not (Test-Command "python")) {
 Write-Host "Installing server lint tooling..."
 python -m pip install --upgrade pip
 python -m pip install -r server/requirements-dev.txt
+python -m pip install -r requirements-dev.txt
 
 Write-Host "Building Docker images..."
 docker compose build

@@ -1,10 +1,9 @@
 name: PR SAST (CodeQL)
+# Done when a PR is opened or updated. Runs Security for CodeQL for a shallow analysis.
 
 on:
   pull_request:
     branches: [main, develop]
-  push:
-    branches: [main]
 
 permissions:
   contents: read
@@ -29,6 +28,7 @@ jobs:
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
+          queries: security-extended
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
