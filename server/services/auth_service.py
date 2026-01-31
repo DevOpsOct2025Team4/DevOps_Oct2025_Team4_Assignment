@@ -19,10 +19,9 @@ class AuthService:
         Returns user data and session tokens
         """
         try:
-            response = self.supabase.auth.sign_in_with_password({
-                "email": email,
-                "password": password
-            })
+            response = self.supabase.auth.sign_in_with_password(
+                {"email": email, "password": password}
+            )
 
             if response.user and response.session:
                 return {
@@ -30,23 +29,17 @@ class AuthService:
                     "user": {
                         "id": response.user.id,
                         "email": response.user.email,
-                        "role": response.user.user_metadata.get("role", "user")
+                        "role": response.user.user_metadata.get("role", "user"),
                     },
                     "session": {
                         "access_token": response.session.access_token,
-                        "refresh_token": response.session.refresh_token
-                    }
+                        "refresh_token": response.session.refresh_token,
+                    },
                 }
             else:
-                return {
-                    "success": False,
-                    "error": "Invalid credentials"
-                }
+                return {"success": False, "error": "Invalid credentials"}
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}
 
     def logout(self, access_token: str, refresh_token: str) -> Dict[str, Any]:
         """
@@ -56,15 +49,9 @@ class AuthService:
             # Set the session first
             self.supabase.auth.set_session(access_token, refresh_token)
             self.supabase.auth.sign_out()
-            return {
-                "success": True,
-                "message": "Logged out successfully"
-            }
+            return {"success": True, "message": "Logged out successfully"}
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}
 
     def verify_token(self, access_token: str) -> Optional[Dict[str, Any]]:
         """
@@ -77,7 +64,7 @@ class AuthService:
                 return {
                     "id": response.user.id,
                     "email": response.user.email,
-                    "role": response.user.user_metadata.get("role", "user")
+                    "role": response.user.user_metadata.get("role", "user"),
                 }
             return None
         except Exception:
@@ -95,16 +82,10 @@ class AuthService:
                     "success": True,
                     "session": {
                         "access_token": response.session.access_token,
-                        "refresh_token": response.session.refresh_token
-                    }
+                        "refresh_token": response.session.refresh_token,
+                    },
                 }
             else:
-                return {
-                    "success": False,
-                    "error": "Failed to refresh session"
-                }
+                return {"success": False, "error": "Failed to refresh session"}
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}

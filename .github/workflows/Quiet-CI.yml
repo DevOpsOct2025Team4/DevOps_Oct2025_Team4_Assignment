@@ -1,0 +1,13 @@
+name: Quiet CI
+
+on:
+  push:
+    branches:
+      - "**"
+
+jobs:
+  quiet_ci:
+    name: Common CI
+    uses: ./.github/workflows/ci-common.yml
+    with:
+      upload_client_artifact: false

@@ -21,10 +21,10 @@ def login():
         password = data.get("password")
 
         if not email or not password:
-            return jsonify({
-                "success": False,
-                "error": "Email and password are required"
-            }), 400
+            return (
+                jsonify({"success": False, "error": "Email and password are required"}),
+                400,
+            )
 
         result = auth_service.login(email, password)
 
@@ -34,10 +34,7 @@ def login():
             return jsonify(result), 401
 
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": f"Login failed: {str(e)}"
-        }), 500
+        return jsonify({"success": False, "error": f"Login failed: {str(e)}"}), 500
 
 
 def logout():
@@ -53,16 +50,13 @@ def logout():
         refresh_token = data.get("refresh_token")
 
         if not auth_header or not auth_header.startswith("Bearer "):
-            return jsonify({
-                "success": False,
-                "error": "No access token provided"
-            }), 401
+            return jsonify({"success": False, "error": "No access token provided"}), 401
 
         if not refresh_token:
-            return jsonify({
-                "success": False,
-                "error": "Refresh token is required"
-            }), 400
+            return (
+                jsonify({"success": False, "error": "Refresh token is required"}),
+                400,
+            )
 
         access_token = auth_header.split(" ")[1]
         result = auth_service.logout(access_token, refresh_token)
@@ -73,10 +67,7 @@ def logout():
             return jsonify(result), 400
 
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": f"Logout failed: {str(e)}"
-        }), 500
+        return jsonify({"success": False, "error": f"Logout failed: {str(e)}"}), 500
 
 
 def verify():
@@ -89,30 +80,21 @@ def verify():
         auth_header = request.headers.get("Authorization")
 
         if not auth_header or not auth_header.startswith("Bearer "):
-            return jsonify({
-                "success": False,
-                "error": "No access token provided"
-            }), 401
+            return jsonify({"success": False, "error": "No access token provided"}), 401
 
         access_token = auth_header.split(" ")[1]
         user = auth_service.verify_token(access_token)
 
         if user:
-            return jsonify({
-                "success": True,
-                "user": user
-            }), 200
+            return jsonify({"success": True, "user": user}), 200
         else:
-            return jsonify({
-                "success": False,
-                "error": "Invalid or expired token"
-            }), 401
+            return jsonify({"success": False, "error": "Invalid or expired token"}), 401
 
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": f"Verification failed: {str(e)}"
-        }), 500
+        return (
+            jsonify({"success": False, "error": f"Verification failed: {str(e)}"}),
+            500,
+        )
 
 
 def refresh():
@@ -130,10 +112,10 @@ def refresh():
         refresh_token = data.get("refresh_token")
 
         if not refresh_token:
-            return jsonify({
-                "success": False,
-                "error": "Refresh token is required"
-            }), 400
+            return (
+                jsonify({"success": False, "error": "Refresh token is required"}),
+                400,
+            )
 
         result = auth_service.refresh_session(refresh_token)
 
@@ -143,7 +125,7 @@ def refresh():
             return jsonify(result), 401
 
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": f"Token refresh failed: {str(e)}"
-        }), 500
+        return (
+            jsonify({"success": False, "error": f"Token refresh failed: {str(e)}"}),
+            500,
+        )

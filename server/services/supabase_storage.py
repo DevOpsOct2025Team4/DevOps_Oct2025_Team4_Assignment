@@ -11,7 +11,9 @@ class UploadError(RuntimeError):
         self.detail = detail
 
 
-def upload_file_to_supabase(file, supabase_url: str, service_key: str, bucket: str, is_public: bool):
+def upload_file_to_supabase(
+    file, supabase_url: str, service_key: str, bucket: str, is_public: bool
+):
     safe_name = secure_filename(file.filename) or "upload"
     object_name = f"{uuid.uuid4().hex}_{safe_name}"
     base_url = supabase_url.rstrip("/")

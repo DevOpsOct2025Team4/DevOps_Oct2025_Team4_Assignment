@@ -44,8 +44,21 @@ if (-not (Test-Path $clientEnv -PathType Leaf) -and (Test-Path $clientExample -P
   Write-Host "Created client\.env from client\.env.example"
 }
 
-pip install -r requirements-dev.txt
-pre-commit install
-pre-commit run --all-files
+if (-not (Test-Command "docker")) {
+  Write-Error "Docker not found. Install Docker Desktop and rerun this script."
+  exit 1
+}
 
-Write-Host "Setup complete. Run: pnpm dev"
+if (-not (Test-Command "python")) {
+  Write-Error "Python not found. Install Python 3.12+ and rerun this script."
+  exit 1
+}
+
+Write-Host "Installing server lint tooling..."
+python -m pip install --upgrade pip
+python -m pip install -r server/requirements-dev.txt
+
+Write-Host "Building Docker images..."
+docker compose build
+
+Write-Host "Setup complete. Run: pnpm start (backend) and pnpm dev (frontend)"
