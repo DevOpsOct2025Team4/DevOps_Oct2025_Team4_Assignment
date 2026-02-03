@@ -83,6 +83,43 @@ export default function Dashboard() {
     }
   };
 
+  const handleDownload = async (fileId, filename) => {
+    const token = localStorage.getItem("access_token");
+
+    try {
+      const response = await fetch(`/api/files/${fileId}/download`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.download_url) {
+        // Fetch the file as a blob to force download
+        const fileResponse = await fetch(data.download_url);
+        const blob = await fileResponse.blob();
+        
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        
+        // Cleanup
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } else {
+        setError(data.error || "Download failed");
+      }
+    } catch (err) {
+      console.error("Failed to download file:", err);
+      setError("Download failed");
+    }
+  };
+
   const handleDelete = async (fileId) => {
     if (!confirm("Are you sure you want to delete this file?")) return;
 
@@ -246,6 +283,12 @@ export default function Dashboard() {
                         {formatDate(file.uploaded_at)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button
+                          onClick={() => handleDownload(file.id, file.original_filename)}
+                          className="text-blue-600 hover:text-blue-900 mr-4"
+                        >
+                          Download
+                        </button>
                         <button
                           onClick={() => handleDelete(file.id)}
                           className="text-red-600 hover:text-red-900"

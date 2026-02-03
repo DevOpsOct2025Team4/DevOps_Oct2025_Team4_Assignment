@@ -49,6 +49,29 @@ class FileService:
         except Exception:
             return []
     
+    def get_file_info(self, file_id: str, user_id: str) -> Dict[str, Any]:
+        """
+        Get file info for download (only if owned by user)
+        """
+        try:
+            response = self.supabase.table("files").select("*").eq("id", file_id).eq("user_id", user_id).execute()
+            
+            if response.data and len(response.data) > 0:
+                return {
+                    "success": True,
+                    "file": response.data[0]
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": "File not found or access denied"
+                }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
     def delete_file_record(self, file_id: str, user_id: str) -> Dict[str, Any]:
         """
         Delete file record from database (only if owned by user)
