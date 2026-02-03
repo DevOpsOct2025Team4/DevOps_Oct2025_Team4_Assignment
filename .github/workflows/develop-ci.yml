@@ -18,8 +18,8 @@ jobs:
     with:
       upload_client_artifact: true
 
-  wait_for_staging_deploy:
-    name: Wait for Staging Deploy (Health + SHA)
+  staging_deploy:
+    name: Staging Deploy (Health + SHA)
     runs-on: ubuntu-latest
     needs: ci
     timeout-minutes: 10
@@ -87,7 +87,7 @@ jobs:
   migrate_staging:
     name: Run Staging DB Migrations
     runs-on: ubuntu-latest
-    needs: wait_for_staging_deploy
+    needs: staging_deploy
     environment:
       name: staging
     env:
@@ -116,7 +116,7 @@ jobs:
           fi
           alembic upgrade head
 
-  post_migration_smoke:
+  migration_smoke:
     name: Post-migration Smoke (Health + DB OK)
     runs-on: ubuntu-latest
     needs: migrate_staging
@@ -178,7 +178,7 @@ jobs:
 
   deep_security:
     name: Deep Security
-    needs: post_migration_smoke
+    needs: migration_smoke
     uses: ./.github/workflows/post-merge-security.yml
     permissions:
       contents: read
