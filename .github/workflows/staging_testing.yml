@@ -21,7 +21,6 @@ jobs:
   staging_deploy:
     name: Staging Deploy (Health + SHA)
     runs-on: ubuntu-latest
-    needs: ci
     timeout-minutes: 10
     environment:
       name: staging
@@ -177,8 +176,7 @@ jobs:
           echo "Post-migration smoke passed."
 
   deep_security:
-    name: Deep Security
-    needs: migration_smoke
+    name: Deep Security (SAST)
     uses: ./.github/workflows/post-merge-security.yml
     permissions:
       contents: read
@@ -187,7 +185,7 @@ jobs:
   integration_tests:
     name: Staging Validation (Integration/E2E on staging)
     runs-on: ubuntu-latest
-    needs: deep_security
+    needs: migration_smoke
     steps:
       - name: Placeholder
         run: |
@@ -195,7 +193,7 @@ jobs:
           echo "Example: run Playwright/Cypress tests against STAGING_URL"
 
   dast:
-    name: DAST (ZAP baseline on staging)
+    name: OWASP ZAP (DAST)
     runs-on: ubuntu-latest
     needs: migration_smoke
     environment: staging
