@@ -40,8 +40,15 @@ jobs:
 
           HEALTH_URL="${STAGING_URL%/}/api/health"
           echo "Checking $HEALTH_URL"
-          echo "Expected SHA: $EXPECTED_SHA"
-          EXPECTED_SHORT="${EXPECTED_SHA:0:7}"
+
+          expected_clean="$(printf "%s" "${EXPECTED_SHA:-}" | tr -d '\r\n')"
+          if [ -z "$expected_clean" ]; then
+            echo "EXPECTED_SHA is empty."
+            exit 1
+          fi
+          expected_short="${expected_clean:0:7}"
+
+          echo "Expected SHA: $expected_clean (short: $expected_short)"
 
           for i in {1..30}; do
             http_code="$(curl -sS --connect-timeout 5 --max-time 10 \
@@ -54,8 +61,8 @@ jobs:
               continue
             fi
 
-            sha="$(jq -r '.sha // empty' /tmp/health.json)"
-            echo "[$i/30] /api/health sha='$sha'"
+            sha="$(jq -r '.sha // empty' /tmp/health.json | tr -d '\r\n')"
+            echo "[$i/30] /api/health sha='${sha}'"
             cat /tmp/health.json || true
 
             if [ -z "$sha" ]; then
@@ -65,12 +72,12 @@ jobs:
             fi
 
             sha_short="${sha:0:7}"
-            if [ "$sha" = "$EXPECTED_SHA" ] || [ "$sha" = "$EXPECTED_SHORT" ] || [ "$sha_short" = "$EXPECTED_SHORT" ]; then
-              echo "Staging is healthy AND running expected commit ($EXPECTED_SHORT)."
+            if [ "$sha" = "$expected_clean" ] || [ "$sha" = "$expected_short" ] || [ "$sha_short" = "$expected_short" ]; then
+              echo "Staging is healthy AND running expected commit ($expected_short)."
               exit 0
             fi
 
-            echo "Staging is healthy but running a different commit. Waiting for deploy..."
+            echo "Staging is healthy but running a different commit (got $sha_short, expected $expected_short). Waiting for deploy..."
             sleep 10
           done
 
@@ -102,6 +109,7 @@ jobs:
       - name: Alembic upgrade
         working-directory: server
         run: |
+          set -euo pipefail
           if [ -z "${DATABASE_URL:-}" ]; then
             echo "STAGING_DATABASE_URL is not set."
             exit 1
@@ -119,7 +127,7 @@ jobs:
       STAGING_URL: ${{ vars.STAGING_URL }}
       EXPECTED_SHA: ${{ github.sha }}
     steps:
-      - name: Check health is OK and DB is true
+      - name: Check health is OK, DB is true, and SHA still matches
         run: |
           set -euo pipefail
 
@@ -141,17 +149,23 @@ jobs:
             exit 1
           fi
 
-          sha="$(jq -r '.sha // empty' /tmp/health.json)"
-          db="$(jq -r '.database // empty' /tmp/health.json)"
+          expected_clean="$(printf "%s" "${EXPECTED_SHA:-}" | tr -d '\r\n')"
+          expected_short="${expected_clean:0:7}"
+
+          sha="$(jq -r '.sha // empty' /tmp/health.json | tr -d '\r\n')"
+          db="$(jq -r '.database // empty' /tmp/health.json | tr -d '\r\n')"
 
           echo "sha='$sha' database='$db'"
           cat /tmp/health.json || true
 
-          # Ensure we're still testing the deployed commit
-          expected_short="${EXPECTED_SHA:0:7}"
+          if [ -z "$sha" ]; then
+            echo "SHA missing from health payload."
+            exit 1
+          fi
+
           sha_short="${sha:0:7}"
-          if [ -z "$sha" ] || ! { [ "$sha" = "$EXPECTED_SHA" ] || [ "$sha" = "$expected_short" ] || [ "$sha_short" = "$expected_short" ]; }; then
-            echo "Staging SHA mismatch after migration. Expected $expected_short."
+          if ! { [ "$sha" = "$expected_clean" ] || [ "$sha" = "$expected_short" ] || [ "$sha_short" = "$expected_short" ]; }; then
+            echo "Staging SHA mismatch after migration. Expected $expected_short, got $sha_short."
             exit 1
           fi
 
@@ -250,7 +264,7 @@ jobs:
 
           RC_TAG="${BASE_TAG}-rc.${NEXT_RC}"
 
-          # Ensure develop didn't move since this run started (optional but safer)
+          # Ensure develop didn't move since this run started (safer)
           git fetch origin develop
           if [ "$(git rev-parse origin/develop)" != "$GITHUB_SHA" ]; then
             echo "Develop moved since this workflow started."
