@@ -1,13 +1,10 @@
 name: Deploy Staging
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
-      tag:
-        description: Tag to deploy (e.g. v1.2.3)
+      ref:
+        description: Git ref to deploy (e.g. develop or a tag)
         required: true
 
 jobs:
@@ -26,41 +23,24 @@ jobs:
       - name: Resolve tag
         id: tag
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          INPUT_TAG: ${{ inputs.tag }}
-          REF_NAME: ${{ github.ref_name }}
+          INPUT_REF: ${{ inputs.ref }}
         run: |
-          git fetch --tags
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            TAG="$INPUT_TAG"
-          else
-            TAG="$REF_NAME"
-          fi
-          if [ -z "$TAG" ]; then
-            echo "No tag found to deploy."
+          git fetch --tags --prune
+          REF="$INPUT_REF"
+          if [ -z "$REF" ]; then
+            echo "No ref found to deploy."
             exit 1
           fi
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout tag
+      - name: Checkout ref
         env:
-          TAG: ${{ steps.tag.outputs.tag }}
-        run: git checkout "$TAG"
+          REF: ${{ steps.tag.outputs.ref }}
+        run: git checkout "$REF"
 
       - name: Deploy to staging
         env:
-          TAG: ${{ steps.tag.outputs.tag }}
+          REF: ${{ steps.tag.outputs.ref }}
         run: |
-          echo "Deploying tag $TAG to staging..."
+          echo "Deploying ref $REF to staging..."
           echo "TODO: replace with your staging deploy command"
-
-      - name: Create draft release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ steps.tag.outputs.tag }}
-        run: |
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists. Skipping."
-            exit 0
-          fi
-          gh release create "$TAG" --draft --title "$TAG" --generate-notes
