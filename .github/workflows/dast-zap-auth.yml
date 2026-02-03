@@ -50,6 +50,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   zap_authenticated:
