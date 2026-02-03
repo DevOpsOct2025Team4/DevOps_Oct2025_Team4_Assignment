@@ -46,7 +46,7 @@ class FileService:
         try:
             response = self.supabase.table("files").select("*").eq("user_id", user_id).order("uploaded_at", desc=True).execute()
             return response.data if response.data else []
-        except Exception as e:
+        except Exception:
             return []
     
     def delete_file_record(self, file_id: str, user_id: str) -> Dict[str, Any]:
