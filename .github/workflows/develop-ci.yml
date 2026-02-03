@@ -42,7 +42,7 @@ jobs:
           echo "Checking $HEALTH_URL"
 
           for i in {1..5}; do
-            status=$(curl -sS -o /tmp/health.json -w "%{http_code}" "$HEALTH_URL" || true)
+            status=$(curl -sS --connect-timeout 5 --max-time 5 -o /tmp/health.json -w "%{http_code}" "$HEALTH_URL" || true)
             if [ "$status" = "200" ]; then
               echo "Staging is healthy."
               cat /tmp/health.json || true
