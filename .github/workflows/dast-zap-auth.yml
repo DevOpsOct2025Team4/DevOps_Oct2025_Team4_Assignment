@@ -4,28 +4,28 @@ on:
   workflow_call:
     inputs:
       staging_web_url:
-        description: "Base URL for the staging web app"
-        required: true
+        description: "Base URL for the staging web app (optional override)"
+        required: false
         type: string
       zap_login_url:
-        description: "Login endpoint URL (JSON login)"
-        required: true
+        description: "Login endpoint URL (JSON login) (optional override)"
+        required: false
         type: string
       zap_username_field:
         description: "JSON field name for username/email"
-        required: true
+        required: false
         type: string
       zap_password_field:
         description: "JSON field name for password"
-        required: true
+        required: false
         type: string
       zap_logged_in_regex:
         description: "Regex indicating a logged-in response"
-        required: true
+        required: false
         type: string
       zap_logged_out_regex:
         description: "Regex indicating a logged-out response"
-        required: true
+        required: false
         type: string
       spider_minutes:
         description: "Spider max duration in minutes"
@@ -54,6 +54,14 @@ permissions:
 jobs:
   zap_authenticated:
     runs-on: ubuntu-latest
+    environment: staging
+    env:
+      STAGING_WEB_URL: ${{ inputs.staging_web_url || vars.STAGING_WEBSITE_URL }}
+      ZAP_LOGIN_URL: ${{ inputs.zap_login_url || format('{0}/api/login', vars.STAGING_URL) }}
+      ZAP_USERNAME_FIELD: ${{ inputs.zap_username_field || vars.ZAP_USERNAME_FIELD }}
+      ZAP_PASSWORD_FIELD: ${{ inputs.zap_password_field || vars.ZAP_PASSWORD_FIELD }}
+      ZAP_LOGGED_IN_REGEX: ${{ inputs.zap_logged_in_regex || vars.ZAP_LOGGED_IN_REGEX }}
+      ZAP_LOGGED_OUT_REGEX: ${{ inputs.zap_logged_out_regex || vars.ZAP_LOGGED_OUT_REGEX }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -68,29 +76,36 @@ jobs:
           chmod -R a+rwx "$GITHUB_WORKSPACE"
 
       - name: Validate inputs
+        env:
+          STAGING_WEB_URL: ${{ env.STAGING_WEB_URL }}
+          ZAP_LOGIN_URL: ${{ env.ZAP_LOGIN_URL }}
+          ZAP_USERNAME_FIELD: ${{ env.ZAP_USERNAME_FIELD }}
+          ZAP_PASSWORD_FIELD: ${{ env.ZAP_PASSWORD_FIELD }}
+          ZAP_LOGGED_IN_REGEX: ${{ env.ZAP_LOGGED_IN_REGEX }}
+          ZAP_LOGGED_OUT_REGEX: ${{ env.ZAP_LOGGED_OUT_REGEX }}
         run: |
           set -euo pipefail
-          if [ -z "${{ inputs.staging_web_url }}" ]; then
+          if [ -z "${STAGING_WEB_URL:-}" ]; then
             echo "staging_web_url is required"; exit 1
           fi
-          if [ -z "${{ inputs.zap_login_url }}" ]; then
+          if [ -z "${ZAP_LOGIN_URL:-}" ]; then
             echo "zap_login_url is required"; exit 1
           fi
-          if [ -z "${{ inputs.zap_username_field }}" ] || [ -z "${{ inputs.zap_password_field }}" ]; then
+          if [ -z "${ZAP_USERNAME_FIELD:-}" ] || [ -z "${ZAP_PASSWORD_FIELD:-}" ]; then
             echo "username/password field names are required"; exit 1
           fi
-          if [ -z "${{ inputs.zap_logged_in_regex }}" ] || [ -z "${{ inputs.zap_logged_out_regex }}" ]; then
+          if [ -z "${ZAP_LOGGED_IN_REGEX:-}" ] || [ -z "${ZAP_LOGGED_OUT_REGEX:-}" ]; then
             echo "logged-in/out regex are required"; exit 1
           fi
 
       - name: Generate ZAP automation plan
         env:
-          STAGING_WEB_URL: ${{ inputs.staging_web_url }}
-          ZAP_LOGIN_URL: ${{ inputs.zap_login_url }}
-          ZAP_USERNAME_FIELD: ${{ inputs.zap_username_field }}
-          ZAP_PASSWORD_FIELD: ${{ inputs.zap_password_field }}
-          ZAP_LOGGED_IN_REGEX: ${{ inputs.zap_logged_in_regex }}
-          ZAP_LOGGED_OUT_REGEX: ${{ inputs.zap_logged_out_regex }}
+          STAGING_WEB_URL: ${{ env.STAGING_WEB_URL }}
+          ZAP_LOGIN_URL: ${{ env.ZAP_LOGIN_URL }}
+          ZAP_USERNAME_FIELD: ${{ env.ZAP_USERNAME_FIELD }}
+          ZAP_PASSWORD_FIELD: ${{ env.ZAP_PASSWORD_FIELD }}
+          ZAP_LOGGED_IN_REGEX: ${{ env.ZAP_LOGGED_IN_REGEX }}
+          ZAP_LOGGED_OUT_REGEX: ${{ env.ZAP_LOGGED_OUT_REGEX }}
           ZAP_USERNAME: ${{ secrets.zap_username }}
           ZAP_PASSWORD: ${{ secrets.zap_password }}
           SPIDER_MINUTES: ${{ inputs.spider_minutes }}
@@ -116,7 +131,7 @@ jobs:
       - name: ZAP Baseline Scan (authenticated)
         uses: zaproxy/action-baseline@v0.12.0
         with:
-          target: ${{ inputs.staging_web_url }}
+          target: ${{ env.STAGING_WEB_URL }}
           rules_file_name: ".zap/rules.tsv"
           cmd_options: ${{ inputs.fail_on_warning && '' || '-I' }}
           fail_action: true
