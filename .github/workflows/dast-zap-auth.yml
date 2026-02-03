@@ -1,0 +1,122 @@
+name: DAST (ZAP Authenticated)
+
+on:
+  workflow_call:
+    inputs:
+      staging_web_url:
+        description: "Base URL for the staging web app"
+        required: true
+        type: string
+      zap_login_url:
+        description: "Login endpoint URL (JSON login)"
+        required: true
+        type: string
+      zap_username_field:
+        description: "JSON field name for username/email"
+        required: true
+        type: string
+      zap_password_field:
+        description: "JSON field name for password"
+        required: true
+        type: string
+      zap_logged_in_regex:
+        description: "Regex indicating a logged-in response"
+        required: true
+        type: string
+      zap_logged_out_regex:
+        description: "Regex indicating a logged-out response"
+        required: true
+        type: string
+      spider_minutes:
+        description: "Spider max duration in minutes"
+        required: false
+        default: 5
+        type: number
+      passive_minutes:
+        description: "Passive scan wait duration in minutes"
+        required: false
+        default: 5
+        type: number
+      fail_on_warning:
+        description: "Fail job on ZAP warnings"
+        required: false
+        default: false
+        type: boolean
+    secrets:
+      zap_username:
+        required: true
+      zap_password:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  zap_authenticated:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare ZAP workspace
+        run: |
+          set -euo pipefail
+          mkdir -p .zap
+          if [ ! -f .zap/rules.tsv ]; then
+            touch .zap/rules.tsv
+          fi
+          chmod -R a+rwx "$GITHUB_WORKSPACE"
+
+      - name: Validate inputs
+        run: |
+          set -euo pipefail
+          if [ -z "${{ inputs.staging_web_url }}" ]; then
+            echo "staging_web_url is required"; exit 1
+          fi
+          if [ -z "${{ inputs.zap_login_url }}" ]; then
+            echo "zap_login_url is required"; exit 1
+          fi
+          if [ -z "${{ inputs.zap_username_field }}" ] || [ -z "${{ inputs.zap_password_field }}" ]; then
+            echo "username/password field names are required"; exit 1
+          fi
+          if [ -z "${{ inputs.zap_logged_in_regex }}" ] || [ -z "${{ inputs.zap_logged_out_regex }}" ]; then
+            echo "logged-in/out regex are required"; exit 1
+          fi
+
+      - name: Generate ZAP automation plan
+        env:
+          STAGING_WEB_URL: ${{ inputs.staging_web_url }}
+          ZAP_LOGIN_URL: ${{ inputs.zap_login_url }}
+          ZAP_USERNAME_FIELD: ${{ inputs.zap_username_field }}
+          ZAP_PASSWORD_FIELD: ${{ inputs.zap_password_field }}
+          ZAP_LOGGED_IN_REGEX: ${{ inputs.zap_logged_in_regex }}
+          ZAP_LOGGED_OUT_REGEX: ${{ inputs.zap_logged_out_regex }}
+          ZAP_USERNAME: ${{ secrets.zap_username }}
+          ZAP_PASSWORD: ${{ secrets.zap_password }}
+          SPIDER_MINUTES: ${{ inputs.spider_minutes }}
+          PASSIVE_MINUTES: ${{ inputs.passive_minutes }}
+        run: |
+          set -euo pipefail
+          python -c 'import os, pathlib; data = pathlib.Path(".zap/zap.template.yaml").read_text(); repl = {
+            "__STAGING_WEB_URL__": os.environ["STAGING_WEB_URL"],
+            "__ZAP_LOGIN_URL__": os.environ["ZAP_LOGIN_URL"],
+            "__ZAP_USERNAME_FIELD__": os.environ["ZAP_USERNAME_FIELD"],
+            "__ZAP_PASSWORD_FIELD__": os.environ["ZAP_PASSWORD_FIELD"],
+            "__ZAP_LOGGED_IN_REGEX__": os.environ["ZAP_LOGGED_IN_REGEX"],
+            "__ZAP_LOGGED_OUT_REGEX__": os.environ["ZAP_LOGGED_OUT_REGEX"],
+            "__ZAP_USERNAME__": os.environ["ZAP_USERNAME"],
+            "__ZAP_PASSWORD__": os.environ["ZAP_PASSWORD"],
+            "__SPIDER_MINUTES__": os.environ.get("SPIDER_MINUTES", "5"),
+            "__PASSIVE_MINUTES__": os.environ.get("PASSIVE_MINUTES", "5"),
+          };
+          for k, v in repl.items():
+            data = data.replace(k, v);
+          pathlib.Path("zap.yaml").write_text(data)'
+
+      - name: ZAP Baseline Scan (authenticated)
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: ${{ inputs.staging_web_url }}
+          rules_file_name: ".zap/rules.tsv"
+          cmd_options: ${{ inputs.fail_on_warning && '' || '-I' }}
+          fail_action: true

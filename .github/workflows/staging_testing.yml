@@ -198,7 +198,7 @@ jobs:
     uses: ./.github/workflows/dast-zap-auth.yml
     with:
       staging_web_url: ${{ vars.STAGING_WEBSITE_URL }}
-      zap_login_url: ${{ vars.STAGING_WEBSITE_URL }} + '/login'
+      zap_login_url: ${{ vars.STAGING_URL }} + '/api/login'
       zap_username_field: ${{ vars.ZAP_USERNAME_FIELD }}
       zap_password_field: ${{ vars.ZAP_PASSWORD_FIELD }}
       zap_logged_in_regex: ${{ vars.ZAP_LOGGED_IN_REGEX }}
