@@ -45,6 +45,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          git fetch origin develop
           DEVELOP_SHA=$(git rev-parse origin/develop)
 
           PR_NUMBER=$(gh pr list --base main --head develop --state open --json number,headRefOid --jq ".[] | select(.headRefOid==\"$DEVELOP_SHA\") | .number" | head -n 1)
@@ -68,6 +69,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.pr.outputs.number }}
         run: |
+          git fetch origin develop --tags
+          RC_TAG="${{ github.event.release.tag_name }}"
+          RC_SHA=$(git rev-parse "$RC_TAG")
+          DEVELOP_SHA=$(git rev-parse origin/develop)
+          if [ "$RC_SHA" != "$DEVELOP_SHA" ]; then
+            echo "Develop moved before merge."
+            echo "RC tag: $RC_TAG -> $RC_SHA"
+            echo "Develop head: $DEVELOP_SHA"
+            exit 1
+          fi
           gh pr merge "$PR_NUMBER" --merge
 
       - name: Create official release tag
