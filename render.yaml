@@ -1,0 +1,10 @@
+services:
+  - type: static_site
+    name: client
+    rootDir: .
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter ./client build
+    staticPublishPath: client/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

@@ -31,6 +31,10 @@ pnpm start
 
 ## Environment variables
 
+- Client env file: `client/.env`
+- Example: `client/.env.example`
+- `VITE_API_BASE_URL` should include the `/api` prefix (example: `http://localhost:5000/api`)
+
 - Server env file: `server/.env`
 - Example: `server/.env.example`
 
