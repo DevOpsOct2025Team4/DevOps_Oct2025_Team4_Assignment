@@ -191,67 +191,24 @@ jobs:
         run: |
           echo "TODO: add integration test command(s)"
           echo "Example: run Playwright/Cypress tests against STAGING_URL"
+
   dast:
-    name: OWASP ZAP (DAST)
-    runs-on: ubuntu-latest
+    name: OWASP ZAP (DAST, authenticated)
     needs: migration_smoke
-    environment: staging
-    env:
-      STAGING_URL: ${{ vars.STAGING_URL }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Prepare ZAP workspace + rules
-        run: |
-          set -euo pipefail
-
-          # Ensure a rules file exists (optional but nice)
-          mkdir -p .zap
-          if [ ! -f .zap/rules.tsv ]; then
-            touch .zap/rules.tsv
-          fi
-
-          # Fix common permissions issue where ZAP can't write zap.yaml/report files into /zap/wrk
-          chmod -R a+rwx "$GITHUB_WORKSPACE"
-
-      - name: Validate target URL
-        env:
-          STAGING_URL: ${{ vars.STAGING_URL }}
-        run: |
-          set -euo pipefail
-          if [ -z "${STAGING_URL:-}" ]; then
-            echo "STAGING_URL is not set."
-            exit 1
-          fi
-
-          TARGET="${STAGING_URL%/}/api/health"
-          echo "DAST target: $TARGET"
-
-          code="$(curl -sS -o /dev/null -w "%{http_code}" "$TARGET" || true)"
-          if [ "$code" != "200" ]; then
-            echo "Target is not returning 200 (got $code)."
-            echo "Fix: point TARGET to an endpoint that returns 200."
-            exit 1
-          fi
-
-      - name: ZAP Baseline Scan (fail only on FAIL)
-        uses: zaproxy/action-baseline@v0.12.0
-        with:
-          target: ${{ env.STAGING_URL }}/api/health
-          rules_file_name: ".zap/rules.tsv"
-          cmd_options: "-I"
-          fail_action: true
-
-      - name: Upload ZAP reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: zap-dast-report
-          path: |
-            report_html.html
-            report_json.json
-            report_md.md
+    uses: ./.github/workflows/dast-zap-auth.yml
+    with:
+      staging_web_url: ${{ vars.STAGING_WEBSITE_URL }}
+      zap_login_url: ${{ vars.STAGING_WEBSITE_URL }} + '/login'
+      zap_username_field: ${{ vars.ZAP_USERNAME_FIELD }}
+      zap_password_field: ${{ vars.ZAP_PASSWORD_FIELD }}
+      zap_logged_in_regex: ${{ vars.ZAP_LOGGED_IN_REGEX }}
+      zap_logged_out_regex: ${{ vars.ZAP_LOGGED_OUT_REGEX }}
+      spider_minutes: 5
+      passive_minutes: 5
+      fail_on_warning: false
+    secrets:
+      zap_username: ${{ secrets.ZAP_USERNAME }}
+      zap_password: ${{ secrets.ZAP_PASSWORD }}
 
   approve_candidate:
     name: Manual Approval
