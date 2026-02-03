@@ -23,17 +23,33 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PR_NUMBER=$(gh pr list --base main --head develop --state open --json number --jq '.[0].number')
+          git fetch origin develop
+
+          TARGET_REF="${{ github.event.release.target_commitish }}"
+          TARGET_SHA=$(git rev-parse "${TARGET_REF}^{commit}" 2>/dev/null || true)
+          if [ -z "$TARGET_SHA" ]; then
+            echo "Unable to resolve release target: $TARGET_REF"
+            exit 1
+          fi
+
+          DEVELOP_SHA=$(git rev-parse origin/develop)
+          if [ "$TARGET_SHA" != "$DEVELOP_SHA" ]; then
+            echo "Release target ($TARGET_SHA) is not the current develop head ($DEVELOP_SHA)."
+            echo "Refuse to merge to avoid promoting unreviewed commits."
+            exit 1
+          fi
+
+          PR_NUMBER=$(gh pr list --base main --head develop --state open --json number,headRefOid --jq ".[] | select(.headRefOid==\"$DEVELOP_SHA\") | .number" | head -n 1)
           if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" = "null" ]; then
-            echo "No open develop -> main PR found. Creating one..."
+            echo "No open develop -> main PR found for $DEVELOP_SHA. Creating one..."
             TAG="${{ github.event.release.tag_name }}"
-            PR_URL=$(gh pr create \
+            gh pr create \
               --base main \
               --head develop \
               --title "Promote develop to main ($TAG)" \
-              --body "Automated promotion from candidate release $TAG.")
-            PR_NUMBER=$(echo "$PR_URL" | sed -n 's#.*/pull/\([0-9]\+\)$#\1#p')
-            if [ -z "$PR_NUMBER" ]; then
+              --body "Automated promotion from candidate release $TAG."
+            PR_NUMBER=$(gh pr list --base main --head develop --state open --json number,headRefOid --jq ".[] | select(.headRefOid==\"$DEVELOP_SHA\") | .number" | head -n 1)
+            if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" = "null" ]; then
               echo "Failed to create PR."
               exit 1
             fi
