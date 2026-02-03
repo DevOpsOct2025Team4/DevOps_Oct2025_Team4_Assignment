@@ -1,0 +1,14 @@
+name: Push CI (Shallow)
+
+on:
+  push:
+    branches-ignore:
+      - main
+      - develop
+
+jobs:
+  run_common:
+    name: Common CI
+    uses: ./.github/workflows/ci-common.yml
+    with:
+      upload_client_artifact: false

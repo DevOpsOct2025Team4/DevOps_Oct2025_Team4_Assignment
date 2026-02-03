@@ -5,18 +5,15 @@
   "scripts": {
     "dev": "pnpm --filter ./client dev",
     "setup": "powershell -ExecutionPolicy Bypass -File setup.ps1",
-    "start": "pnpm create-docker && pnpm --filter ./server prisma:migrate",
-    "prisma:migrate": "pnpm --filter ./server prisma:migrate",
-    "prisma:studio": "pnpm --filter ./server prisma:studio",
-    "deploy": "pnpm --filter ./server prisma:deploy",
-    "dev:all": "pnpm -r --parallel dev",
-    "dev:server": "pnpm --filter ./server dev",
+    "start": "pnpm create-docker",
+    "migrate": "powershell -ExecutionPolicy Bypass -File scripts/migrate.ps1",
     "build": "pnpm --filter ./client build",
-    "lint": "pnpm -r lint",
+    "lint": "pnpm --filter ./client lint && pnpm lint:server",
+    "lint:server": "python -m ruff check server",
+    "check": "pnpm lint && python -m pre_commit run --all-files",
     "create-local-db": "docker compose up -d db",
     "create-docker-server": "docker compose up -d --build server",
     "create-docker": "docker compose up -d --build",
-    "setup-db": "pnpm create-local-db && pnpm --filter ./server prisma:migrate",
-    "setup-docker": "pnpm create-docker && pnpm --filter ./server prisma:deploy"
+    "dbstudio": "docker compose up -d dbstudio && echo DB Studio: http://localhost:8080"
   }
 }

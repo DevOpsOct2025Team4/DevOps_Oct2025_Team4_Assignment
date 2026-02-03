@@ -1,0 +1,22 @@
+title = "custom rules"
+
+[[rules]]
+id = "hardcoded-credential-assignment"
+description = "Hardcoded API keys/tokens/secrets in code (assignment)"
+regex = '''\b([Aa][Pp][Ii][_-]?[Kk][Ee][Yy]|[Tt]oken|[Ss]ecret|[Aa]ccess[_-]?[Tt]oken|[Aa]ccess[_-]?[Kk]ey|[Cc]lient[_-]?[Ss]ecret|[Pp]rivate[_-]?[Kk]ey|[Bb]earer)\b\s*[:=]\s*(\r?\n\s*)?["'][A-Za-z0-9_\/+=.-]{16,}["']'''
+tags = ["key", "token", "secret"]
+
+[[rules]]
+id = "generic-token-like"
+description = "Token-like strings (JWT / Bearer / long tokens)"
+regex = '''\b(eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|[Bb]earer[ ]+[A-Za-z0-9._-]{20,}|[A-Za-z0-9]{10,}[A-Za-z0-9_-]{12,}[-_][A-Za-z0-9_-]{10,})\b'''
+tags = ["token"]
+
+[allowlist]
+description = "Allow common placeholder secrets"
+regexes = [
+  '''YOUR_API_KEY_HERE''',
+  '''REDACTED''',
+  '''EXAMPLE[_-]?KEY''',
+  '''TEST[_-]?KEY'''
+]

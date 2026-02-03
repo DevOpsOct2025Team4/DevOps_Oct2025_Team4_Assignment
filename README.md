@@ -1,13 +1,15 @@
 # DevOps_Oct2025_Team4_Assignment
 
-React (Vite) frontend + Express backend in a pnpm workspace, with Docker and Prisma.
+React (Vite) frontend + Flask backend, with Docker for the server and database.
 
 ## Prerequisites
+
 - Node.js 18+
 - pnpm (`npm i -g pnpm`)
-- Docker Desktop (for local DB/containers)
+- Docker Desktop (for backend containers)
 
 ## Quick Start (local dev)
+
 From the repo root:
 
 ```powershell
@@ -16,44 +18,40 @@ pnpm start
 pnpm dev
 ```
 
-Frontend: http://localhost:5173  
-Backend: http://localhost:5000
+Frontend: http://localhost:5173
+Backend (Docker): http://localhost:5000
 
-## One-command Docker + migrations
-This builds and starts the server + DB containers, then runs Prisma migrations:
+## Start backend containers
+
+This builds and starts the server + DB containers and runs Alembic migrations:
 
 ```powershell
 pnpm start
 ```
 
 ## Environment variables
+
+- Client env file: `client/.env`
+- Example: `client/.env.example`
+- `VITE_API_BASE_URL` should include the `/api` prefix (example: `http://localhost:5000/api`)
+
 - Server env file: `server/.env`
 - Example: `server/.env.example`
 
 Local DB (host machine) default:
+
 ```
 DATABASE_URL=postgres://app:app@localhost:5432/app
 ```
 
 When the server runs inside Docker via compose, it uses:
+
 ```
 postgres://app:app@db:5432/app
 ```
 
-## Prisma
-Create/apply migrations (also generates client):
-
-```powershell
-pnpm prisma:migrate
-```
-
-Open Prisma Studio:
-
-```powershell
-pnpm prisma:studio
-```
-
 ## Docker
+
 Start DB only:
 
 ```powershell
@@ -72,36 +70,50 @@ Start both:
 pnpm create-docker
 ```
 
+## DB Studio (web UI)
+
+Start the Adminer web UI:
+
+```powershell
+pnpm dbstudio
+```
+
+Open http://localhost:8080 and connect with:
+
+- System: PostgreSQL
+- Server: db
+- Username: app
+- Password: app
+- Database: app
+
 ## Lint
+
 ```powershell
 pnpm lint
 ```
 
 ## Build
+
 ```powershell
 pnpm build
 ```
 
 ## Deploy (migrations only)
-Production-safe migrations:
 
-```powershell
-pnpm deploy
-```
+Not applicable (migrations run on container start).
 
 ## Scripts (summary)
-- `pnpm setup` install deps + create `server/.env` if missing
-- `pnpm dev` run frontend + backend locally
-- `pnpm start` docker up + prisma migrate dev
-- `pnpm deploy` prisma migrate deploy
+
+- `pnpm setup` install frontend deps, create env files, build Docker images
+- `pnpm dev` run frontend only
+- `pnpm start` start backend + DB containers
 
 ## Tech Stack
-Frontend: React + Vite  
-Backend: Node.js + Express  
-Database: Postgres (local), Supabase (prod)  
-ORM: Prisma  
+
+Frontend: React + Vite
+Backend: Python + Flask
+Database: Postgres (local), Supabase (prod)
 Containerization: Docker + Compose
-
-
+Migrations: Alembic
 
 #Testing Pipeline V7 - Marcus
