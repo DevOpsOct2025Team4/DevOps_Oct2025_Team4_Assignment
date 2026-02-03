@@ -2,7 +2,14 @@ from flask import request, jsonify
 from services.auth_service import AuthService
 
 
-auth_service = AuthService()
+auth_service = None
+
+
+def get_auth_service():
+    global auth_service
+    if auth_service is None:
+        auth_service = AuthService()
+    return auth_service
 
 
 def login():
@@ -26,7 +33,7 @@ def login():
                 400,
             )
 
-        result = auth_service.login(email, password)
+        result = get_auth_service().login(email, password)
 
         if result["success"]:
             return jsonify(result), 200
@@ -59,7 +66,7 @@ def logout():
             )
 
         access_token = auth_header.split(" ")[1]
-        result = auth_service.logout(access_token, refresh_token)
+        result = get_auth_service().logout(access_token, refresh_token)
 
         if result["success"]:
             return jsonify(result), 200
@@ -83,7 +90,7 @@ def verify():
             return jsonify({"success": False, "error": "No access token provided"}), 401
 
         access_token = auth_header.split(" ")[1]
-        user = auth_service.verify_token(access_token)
+        user = get_auth_service().verify_token(access_token)
 
         if user:
             return jsonify({"success": True, "user": user}), 200
@@ -117,7 +124,7 @@ def refresh():
                 400,
             )
 
-        result = auth_service.refresh_session(refresh_token)
+        result = get_auth_service().refresh_session(refresh_token)
 
         if result["success"]:
             return jsonify(result), 200
