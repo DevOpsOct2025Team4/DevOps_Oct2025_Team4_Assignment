@@ -7,4 +7,9 @@ from services.health_service import check_database
 
 def health():
     database = check_database(os.getenv("DATABASE_URL"), current_app.logger)
-    return jsonify(server=True, database=database)
+    sha = (
+        os.getenv("GIT_SHA")
+        or os.getenv("RENDER_GIT_COMMIT")
+        or os.getenv("SOURCE_VERSION")
+    )
+    return jsonify(server=True, database=database, sha=sha)

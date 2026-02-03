@@ -1,0 +1,94 @@
+name: Promote Release Candidate
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  promote:
+    if: contains(github.event.release.tag_name, '-rc.')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate rc tag and develop head
+        id: rc
+        run: |
+          git fetch origin develop --tags
+          RC_TAG="${{ github.event.release.tag_name }}"
+          if ! [[ "$RC_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]]; then
+            echo "Not a release candidate tag: $RC_TAG"
+            exit 1
+          fi
+
+          RC_SHA=$(git rev-parse "$RC_TAG")
+          DEVELOP_SHA=$(git rev-parse origin/develop)
+          if [ "$RC_SHA" != "$DEVELOP_SHA" ]; then
+            echo "Develop moved since RC was created."
+            echo "RC tag: $RC_TAG -> $RC_SHA"
+            echo "Develop head: $DEVELOP_SHA"
+            exit 1
+          fi
+
+          BASE_TAG="${RC_TAG%-rc.*}"
+          echo "base_tag=$BASE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Find or create develop -> main PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DEVELOP_SHA=$(git rev-parse origin/develop)
+
+          PR_NUMBER=$(gh pr list --base main --head develop --state open --json number,headRefOid --jq ".[] | select(.headRefOid==\"$DEVELOP_SHA\") | .number" | head -n 1)
+          if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" = "null" ]; then
+            echo "No open develop -> main PR found for $DEVELOP_SHA. Creating one..."
+            gh pr create \
+              --base main \
+              --head develop \
+              --title "Promote develop to main (${{ github.event.release.tag_name }})" \
+              --body "Automated promotion from release candidate ${{ github.event.release.tag_name }}."
+            PR_NUMBER=$(gh pr list --base main --head develop --state open --json number,headRefOid --jq ".[] | select(.headRefOid==\"$DEVELOP_SHA\") | .number" | head -n 1)
+            if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" = "null" ]; then
+              echo "Failed to create PR."
+              exit 1
+            fi
+          fi
+          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Merge PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          gh pr merge "$PR_NUMBER" --merge
+
+      - name: Create official release tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_TAG: ${{ steps.rc.outputs.base_tag }}
+        run: |
+          git fetch origin main --tags
+          git checkout main
+          git reset --hard origin/main
+
+          if git rev-parse "$BASE_TAG" >/dev/null 2>&1; then
+            echo "Tag $BASE_TAG already exists. Skipping."
+            exit 0
+          fi
+
+          git tag "$BASE_TAG"
+          git push origin "$BASE_TAG"
+
+          if gh release view "$BASE_TAG" >/dev/null 2>&1; then
+            echo "Release $BASE_TAG already exists. Skipping."
+            exit 0
+          fi
+          gh release create "$BASE_TAG" --title "$BASE_TAG" --generate-notes

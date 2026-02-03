@@ -14,19 +14,82 @@ jobs:
     with:
       upload_client_artifact: true
 
-  integration_tests:
-    name: Integration Tests
+  smoke_tests:
+    name: Staging Smoke Tests (Health + SHA)
     runs-on: ubuntu-latest
     needs: ci
+    timeout-minutes: 10
+    environment:
+      name: staging
+    env:
+      STAGING_URL: ${{ vars.STAGING_URL }}
+      EXPECTED_SHA: ${{ github.sha }}
     steps:
-      - name: Placeholder
+      - name: Wait for staging health AND correct SHA
         run: |
-          echo "TODO: add integration test command(s)"
+          set -euo pipefail
+
+          if [ -z "${STAGING_URL:-}" ]; then
+            echo "STAGING_URL is not set."
+            exit 1
+          fi
+
+          HEALTH_URL="${STAGING_URL%/}/api/health"
+          echo "Checking $HEALTH_URL"
+          echo "Expected SHA: $EXPECTED_SHA"
+
+          EXPECTED_SHORT="${EXPECTED_SHA:0:7}"
+
+          for i in {1..30}; do
+            http_code="$(curl -sS --connect-timeout 5 --max-time 10 \
+              -o /tmp/health.json -w "%{http_code}" \
+              "$HEALTH_URL" || true)"
+
+            if [ "$http_code" != "200" ]; then
+              echo "[$i/30] Not ready (HTTP $http_code)."
+              sleep 10
+              continue
+            fi
+
+            # Parse sha from JSON (using python, always available on ubuntu-latest)
+            sha="$(python - <<'PY'
+            import json
+            try:
+                with open("/tmp/health.json","r",encoding="utf-8") as f:
+                    data=json.load(f)
+                print(data.get("sha") or "")
+            except Exception:
+                print("")
+            PY
+            )"
+
+            echo "[$i/30] /api/health sha='$sha'"
+            cat /tmp/health.json || true
+
+            if [ -z "$sha" ]; then
+              echo "SHA not present yet; waiting..."
+              sleep 10
+              continue
+            fi
+
+            # Accept exact match OR prefix match (handles short SHAs)
+            sha_short="${sha:0:7}"
+            if [ "$sha" = "$EXPECTED_SHA" ] || [ "$sha" = "$EXPECTED_SHORT" ] || [ "$sha_short" = "$EXPECTED_SHORT" ]; then
+              echo "Staging is healthy AND running expected commit ($EXPECTED_SHORT)."
+              exit 0
+            fi
+
+            echo "Staging is healthy but running a different commit. Waiting for deploy..."
+            sleep 10
+          done
+
+          echo "Staging did not report the expected SHA in time."
+          exit 1
 
   migrate_staging:
     name: Run Staging DB Migrations
     runs-on: ubuntu-latest
-    needs: integration_tests
+    needs: smoke_tests
     environment:
       name: staging
     env:
@@ -54,112 +117,55 @@ jobs:
           fi
           alembic upgrade head
 
-  smoke_tests:
-    name: Staging Smoke Tests
-    runs-on: ubuntu-latest
+  deep_security:
+    name: Deep Security
     needs: migrate_staging
-    timeout-minutes: 10
-    environment:
-      name: staging
-    env:
-      STAGING_URL: ${{ vars.STAGING_URL }}
+    uses: ./.github/workflows/post-merge-security.yml
+    permissions:
+      contents: read
+      security-events: write
+
+  integration_tests:
+    name: Staging Validation (CI on staging server)
+    runs-on: ubuntu-latest
+    needs: deep_security
     steps:
-      - name: Wait for staging health
+      - name: Placeholder
         run: |
-          if [ -z "$STAGING_URL" ]; then
-            echo "STAGING_URL is not set."
-            exit 1
-          fi
-
-          HEALTH_URL="${STAGING_URL%/}/api/health"
-          echo "Checking $HEALTH_URL"
-
-          for i in {1..5}; do
-            status=$(curl -sS --connect-timeout 5 --max-time 5 -o /tmp/health.json -w "%{http_code}" "$HEALTH_URL" || true)
-            if [ "$status" = "200" ]; then
-              echo "Staging is healthy."
-              cat /tmp/health.json || true
-              exit 0
-            fi
-            echo "Waiting for staging... ($i/5)"
-            sleep 10
-          done
-
-          echo "Staging did not become healthy in time."
-          exit 1
+          echo "TODO: add integration test command(s)"
 
   approve_candidate:
     name: Manual Approval
     runs-on: ubuntu-latest
-    needs: smoke_tests
+    needs: integration_tests
     environment:
       name: review
     steps:
       - name: Approval checkpoint
         run: echo "Staging approved."
 
-  promote_main:
-    name: Merge to Main & Draft Release
+  release_candidate:
+    name: Draft Release Candidate
     runs-on: ubuntu-latest
     needs: approve_candidate
     permissions:
       contents: write
-      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Find or create develop -> main PR
-        id: pr
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git fetch origin develop
-          DEVELOP_SHA=$(git rev-parse origin/develop)
-          if [ "$DEVELOP_SHA" != "$GITHUB_SHA" ]; then
-            echo "Develop moved since this workflow started."
-            echo "Current develop head: $DEVELOP_SHA"
-            echo "Workflow SHA: $GITHUB_SHA"
-            exit 1
-          fi
-
-          PR_NUMBER=$(gh pr list --base main --head develop --state open --json number,headRefOid --jq ".[] | select(.headRefOid==\"$DEVELOP_SHA\") | .number" | head -n 1)
-          if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" = "null" ]; then
-            echo "No open develop -> main PR found for $DEVELOP_SHA. Creating one..."
-            gh pr create \
-              --base main \
-              --head develop \
-              --title "Promote develop to main ($DEVELOP_SHA)" \
-              --body "Automated promotion after staging approval."
-            PR_NUMBER=$(gh pr list --base main --head develop --state open --json number,headRefOid --jq ".[] | select(.headRefOid==\"$DEVELOP_SHA\") | .number" | head -n 1)
-            if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" = "null" ]; then
-              echo "Failed to create PR."
-              exit 1
-            fi
-          fi
-          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
-
-      - name: Merge PR
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ steps.pr.outputs.number }}
-        run: |
-          gh pr merge "$PR_NUMBER" --merge
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "18"
 
-      - name: Create version tag and draft release
+      - name: Create draft rc release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git fetch origin main --tags
-          git checkout main
-          git reset --hard origin/main
+          git fetch --tags
 
           BASE_VERSION=$(node -p "require('./package.json').version")
           IFS='.' read -r MAJOR MINOR _ <<< "$BASE_VERSION"
@@ -168,11 +174,12 @@ jobs:
             exit 1
           fi
 
-          LATEST_MATCHING_TAG=$(git tag --list "v${MAJOR}.${MINOR}.*" --sort=-v:refname | head -n 1)
-          if [ -n "$LATEST_MATCHING_TAG" ]; then
-            PATCH="${LATEST_MATCHING_TAG#v${MAJOR}.${MINOR}.}"
+          LATEST_FINAL=$(git tag --list "v${MAJOR}.${MINOR}.[0-9]*" --sort=-v:refname \
+            | grep -E "^v${MAJOR}\\.${MINOR}\\.[0-9]+$" | head -n 1)
+          if [ -n "$LATEST_FINAL" ]; then
+            PATCH="${LATEST_FINAL#v${MAJOR}.${MINOR}.}"
             if ! [[ "$PATCH" =~ ^[0-9]+$ ]]; then
-              echo "Invalid matching tag format: $LATEST_MATCHING_TAG"
+              echo "Invalid matching tag format: $LATEST_FINAL"
               exit 1
             fi
             NEXT_PATCH=$((PATCH + 1))
@@ -180,18 +187,31 @@ jobs:
             NEXT_PATCH=0
           fi
 
-          TAG="v${MAJOR}.${MINOR}.${NEXT_PATCH}"
+          BASE_TAG="v${MAJOR}.${MINOR}.${NEXT_PATCH}"
+          LAST_RC=$(git tag --list "${BASE_TAG}-rc.*" --sort=-v:refname | head -n 1)
+          if [ -n "$LAST_RC" ]; then
+            RC_NUM="${LAST_RC##*-rc.}"
+            if ! [[ "$RC_NUM" =~ ^[0-9]+$ ]]; then
+              echo "Invalid rc tag format: $LAST_RC"
+              exit 1
+            fi
+            NEXT_RC=$((RC_NUM + 1))
+          else
+            NEXT_RC=1
+          fi
 
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists. Skipping."
+          RC_TAG="${BASE_TAG}-rc.${NEXT_RC}"
+
+          if git rev-parse "$RC_TAG" >/dev/null 2>&1; then
+            echo "Tag $RC_TAG already exists. Skipping."
             exit 0
           fi
 
-          git tag "$TAG"
-          git push origin "$TAG"
+          git tag "$RC_TAG" "$GITHUB_SHA"
+          git push origin "$RC_TAG"
 
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists. Skipping."
+          if gh release view "$RC_TAG" >/dev/null 2>&1; then
+            echo "Release $RC_TAG already exists. Skipping."
             exit 0
           fi
-          gh release create "$TAG" --draft --title "$TAG" --generate-notes
+          gh release create "$RC_TAG" --draft --title "$RC_TAG" --target "$GITHUB_SHA" --generate-notes
