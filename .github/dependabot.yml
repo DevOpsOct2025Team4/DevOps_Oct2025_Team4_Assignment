@@ -6,6 +6,7 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "03:00"
+    target-branch: "develop"
     open-pull-requests-limit: 5
 
   - package-ecosystem: "pip"
@@ -14,4 +15,5 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "03:00"
+    target-branch: "develop"
     open-pull-requests-limit: 5
