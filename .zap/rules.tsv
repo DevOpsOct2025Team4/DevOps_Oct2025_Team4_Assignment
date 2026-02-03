@@ -1,0 +1,6 @@
+# zap baseline rules
+# ACTION: IGNORE / WARN / FAIL
+IGNORE	10035	# HSTS not set
+IGNORE	10038	# CSP not set
+IGNORE	10049	# Cacheable content
+IGNORE	10063	# Permissions-Policy not set

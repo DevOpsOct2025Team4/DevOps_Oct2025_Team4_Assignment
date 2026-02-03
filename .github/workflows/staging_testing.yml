@@ -211,14 +211,15 @@ jobs:
       - name: ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.12.0
         with:
-          target: ${{ env.STAGING_URL }}
+          target: "https://staging-app-h1g9.onrender.com/api/health"
           fail_action: true
           rules_file_name: ".zap/rules.tsv"
+          cmd_options: "-I"
 
   approve_candidate:
     name: Manual Approval
     runs-on: ubuntu-latest
-    needs: integration_tests
+    needs: [integration_tests, dast]
     environment:
       name: review
     steps:
