@@ -135,5 +135,5 @@ jobs:
           target: ${{ env.STAGING_WEB_URL }}
           rules_file_name: ".zap/rules.tsv"
           cmd_options: ${{ inputs.fail_on_warning && '' || '-I' }}
-          artifact_name: "zap-scan"
+          artifact_name: "zapscan"
           fail_action: true
