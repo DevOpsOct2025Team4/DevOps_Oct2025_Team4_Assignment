@@ -54,8 +54,9 @@ if (-not (Test-Command "python")) {
   exit 1
 }
 
-Write-Host "Installing server lint tooling..."
+Write-Host "Installing server dependencies..."
 python -m pip install --upgrade pip
+python -m pip install -r server/requirements.txt
 python -m pip install -r server/requirements-dev.txt
 python -m pip install -r requirements-dev.txt
 
