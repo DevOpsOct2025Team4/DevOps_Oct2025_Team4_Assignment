@@ -14,16 +14,16 @@ auth_service = AuthService()
 def upload():
     # Verify authentication
     auth_header = request.headers.get("Authorization")
-    
+
     if not auth_header or not auth_header.startswith("Bearer "):
         return jsonify(error="Authentication required"), 401
-    
+
     access_token = auth_header.split(" ")[1]
     user = auth_service.verify_token(access_token)
-    
+
     if not user:
         return jsonify(error="Invalid or expired token"), 401
-    
+
     if "file" not in request.files:
         return jsonify(error="Missing file field"), 400
 
@@ -63,7 +63,7 @@ def upload():
             bucket=bucket,
             is_public=is_public,
         )
-        
+
         # Save file record to database
         file_service.save_file_record(
             user_id=user["id"],
@@ -72,9 +72,9 @@ def upload():
             file_path=payload.get("path", ""),
             file_size=file.content_length or 0,
             mime_type=file.content_type or "application/octet-stream",
-            bucket=bucket
+            bucket=bucket,
         )
-        
+
     except UploadError as exc:
         return (
             jsonify(
