@@ -24,6 +24,10 @@ api_bp.get("/users")(get_users)
 api_bp.post("/users")(create_user)
 api_bp.delete("/users/<user_id>")(delete_user)
 
+# Admin assignment aliases
+api_bp.post("/admin/create_user")(create_user)
+api_bp.post("/admin/delete_user/<user_id>")(delete_user)
+
 # File routes
 api_bp.get("/files")(get_user_files)
 api_bp.get("/files/<file_id>/download")(download_file)
