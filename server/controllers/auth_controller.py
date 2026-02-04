@@ -132,3 +132,38 @@ def refresh():
             jsonify({"success": False, "error": f"Token refresh failed: {str(e)}"}),
             500,
         )
+
+
+def get_users():
+    """
+    GET /api/users
+    Admin only endpoint to get all registered users
+    Returns: { "success": true, "users": [...] }
+    """
+    try:
+        # Check if user is admin
+        user = g.get("current_user")
+        
+        if not user:
+            return jsonify({"success": False, "error": "No user in context"}), 401
+        
+        user_role = user.get("role", "").lower() if user.get("role") else ""
+        
+        if user_role != "admin":
+            return jsonify({
+                "success": False, 
+                "error": "Unauthorized. Admin access required"
+            }), 403
+
+        result = get_auth_service().get_all_users()
+
+        if result["success"]:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 500
+
+    except Exception as e:
+        return (
+            jsonify({"success": False, "error": f"Failed to fetch users: {str(e)}"}),
+            500,
+        )

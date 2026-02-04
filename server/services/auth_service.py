@@ -24,12 +24,16 @@ class AuthService:
             )
 
             if response.user and response.session:
+                # Get role from user metadata
+                user_meta = response.user.user_metadata or {}
+                role = user_meta.get("role", "user")
+                
                 return {
                     "success": True,
                     "user": {
                         "id": response.user.id,
                         "email": response.user.email,
-                        "role": response.user.user_metadata.get("role", "user"),
+                        "role": role,
                     },
                     "session": {
                         "access_token": response.session.access_token,
@@ -61,10 +65,14 @@ class AuthService:
             response = self.supabase.auth.get_user(access_token)
 
             if response.user:
+                # Try to get role from user_metadata, with fallback to raw_user_meta_data
+                user_meta = response.user.user_metadata or {}
+                role = user_meta.get("role", "user")
+                
                 return {
                     "id": response.user.id,
                     "email": response.user.email,
-                    "role": response.user.user_metadata.get("role", "user"),
+                    "role": role,
                 }
             return None
         except Exception:
@@ -87,5 +95,31 @@ class AuthService:
                 }
             else:
                 return {"success": False, "error": "Failed to refresh session"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def get_all_users(self) -> Dict[str, Any]:
+        """
+        Fetch all registered user accounts from Supabase auth
+        Returns list of users with id, email, and role
+        """
+        try:
+            response = self.supabase.auth.admin.list_users()
+
+            if response:
+                users = []
+                for user in response:
+                    users.append({
+                        "id": user.id,
+                        "email": user.email,
+                        "role": user.user_metadata.get("role", "user") if user.user_metadata else "user",
+                        "created_at": user.created_at.isoformat() if hasattr(user, "created_at") else None,
+                    })
+                return {
+                    "success": True,
+                    "users": users,
+                }
+            else:
+                return {"success": False, "error": "No users found"}
         except Exception as e:
             return {"success": False, "error": str(e)}
