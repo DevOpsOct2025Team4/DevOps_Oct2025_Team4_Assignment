@@ -218,6 +218,29 @@ jobs:
       - name: Approval checkpoint
         run: echo "Staging approved."
 
+      - name: Notify Discord (Approval Granted)
+        if: success()
+        run: |
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "✅ Staging Approved",
+              "description": "Release candidate approved by **${{ github.actor }}**",
+              "color": 3066993,
+              "fields": [
+                {"name": "Commit", "value": "[${GITHUB_SHA:0:7}]($COMMIT_URL)", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Workflow", "value": "[View Run]($RUN_URL)", "inline": false}
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
+
   release_candidate:
     name: Draft Release Candidate (RC)
     runs-on: ubuntu-latest
@@ -305,3 +328,52 @@ jobs:
             --title "$RC_TAG" \
             --target "$GITHUB_SHA" \
             --generate-notes
+
+          echo "RC_TAG=$RC_TAG" >> $GITHUB_ENV
+
+      - name: Notify Discord (RC Success)
+        if: success()
+        run: |
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          RELEASE_URL="${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ env.RC_TAG }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "🚀 Release Candidate Created",
+              "description": "Draft release **${{ env.RC_TAG }}** is ready for review",
+              "color": 5763719,
+              "fields": [
+                {"name": "Tag", "value": "[${{ env.RC_TAG }}]($RELEASE_URL)", "inline": true},
+                {"name": "Commit", "value": "[${GITHUB_SHA:0:7}]($COMMIT_URL)", "inline": true},
+                {"name": "Workflow", "value": "[View Run]($RUN_URL)", "inline": false}
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
+
+      - name: Notify Discord (RC Failure)
+        if: failure()
+        run: |
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "❌ Release Candidate Failed",
+              "description": "Failed to create release candidate",
+              "color": 15158332,
+              "fields": [
+                {"name": "Commit", "value": "[${GITHUB_SHA:0:7}]($COMMIT_URL)", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Workflow", "value": "[View Run]($RUN_URL)", "inline": false}
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
