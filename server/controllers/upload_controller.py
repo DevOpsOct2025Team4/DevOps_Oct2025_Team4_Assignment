@@ -1,11 +1,19 @@
 import os
 
-from flask import jsonify, request
+from flask import g, jsonify, request
 
 from services.supabase_storage import UploadError, upload_file_to_supabase
+from services.file_service import FileService
+
+
+file_service = FileService()
 
 
 def upload():
+    user_id = getattr(g, "user_id", None)
+    if not user_id:
+        return jsonify(error="Authentication required"), 401
+
     if "file" not in request.files:
         return jsonify(error="Missing file field"), 400
 
@@ -45,6 +53,18 @@ def upload():
             bucket=bucket,
             is_public=is_public,
         )
+
+        # Save file record to database
+        file_service.save_file_record(
+            user_id=user_id,
+            filename=payload.get("path", "").split("/")[-1],
+            original_filename=file.filename,
+            file_path=payload.get("path", ""),
+            file_size=file.content_length or 0,
+            mime_type=file.content_type or "application/octet-stream",
+            bucket=bucket,
+        )
+
     except UploadError as exc:
         return (
             jsonify(

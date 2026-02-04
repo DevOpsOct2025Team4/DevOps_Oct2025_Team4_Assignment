@@ -1,0 +1,307 @@
+name: Staging Testing & Release Candidate
+
+on:
+  push:
+    branches: [develop]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: develop-ci
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    name: Common CI
+    uses: ./.github/workflows/ci-common.yml
+    with:
+      upload_client_artifact: true
+
+  staging_deploy:
+    name: Staging Deploy (Health + SHA)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: staging
+    env:
+      STAGING_URL: ${{ vars.STAGING_URL }}
+      EXPECTED_SHA: ${{ github.sha }}
+    steps:
+      - name: Wait for staging health AND correct SHA
+        run: |
+          set -euo pipefail
+
+          if [ -z "${STAGING_URL:-}" ]; then
+            echo "STAGING_URL is not set."
+            exit 1
+          fi
+
+          HEALTH_URL="${STAGING_URL%/}/api/health"
+          echo "Checking $HEALTH_URL"
+
+          expected_clean="$(printf "%s" "${EXPECTED_SHA:-}" | tr -d '\r\n')"
+          if [ -z "$expected_clean" ]; then
+            echo "EXPECTED_SHA is empty."
+            exit 1
+          fi
+          expected_short="${expected_clean:0:7}"
+
+          echo "Expected SHA: $expected_clean (short: $expected_short)"
+
+          for i in {1..30}; do
+            http_code="$(curl -sS --connect-timeout 5 --max-time 10 \
+              -o /tmp/health.json -w "%{http_code}" \
+              "$HEALTH_URL" || true)"
+
+            if [ "$http_code" != "200" ]; then
+              echo "[$i/30] Not ready (HTTP $http_code)."
+              sleep 10
+              continue
+            fi
+
+            sha="$(jq -r '.sha // empty' /tmp/health.json | tr -d '\r\n')"
+            echo "[$i/30] /api/health sha='${sha}'"
+            cat /tmp/health.json || true
+
+            if [ -z "$sha" ]; then
+              echo "SHA not present yet; waiting..."
+              sleep 10
+              continue
+            fi
+
+            sha_short="${sha:0:7}"
+            if [ "$sha" = "$expected_clean" ] || [ "$sha" = "$expected_short" ] || [ "$sha_short" = "$expected_short" ]; then
+              echo "Staging is healthy AND running expected commit ($expected_short)."
+              exit 0
+            fi
+
+            echo "Staging is healthy but running a different commit (got $sha_short, expected $expected_short). Waiting for deploy..."
+            sleep 10
+          done
+
+          echo "Staging did not report the expected SHA in time."
+          exit 1
+
+  migrate_staging:
+    name: Run Staging DB Migrations
+    runs-on: ubuntu-latest
+    needs: staging_deploy
+    environment:
+      name: staging
+    env:
+      DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install server deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r server/requirements.txt
+
+      - name: Alembic upgrade
+        working-directory: server
+        run: |
+          set -euo pipefail
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "STAGING_DATABASE_URL is not set."
+            exit 1
+          fi
+          alembic upgrade head
+
+  migration_smoke:
+    name: Post-migration Smoke (Health + DB OK)
+    runs-on: ubuntu-latest
+    needs: migrate_staging
+    timeout-minutes: 10
+    environment:
+      name: staging
+    env:
+      STAGING_URL: ${{ vars.STAGING_URL }}
+      EXPECTED_SHA: ${{ github.sha }}
+    steps:
+      - name: Check health is OK, DB is true, and SHA still matches
+        run: |
+          set -euo pipefail
+
+          if [ -z "${STAGING_URL:-}" ]; then
+            echo "STAGING_URL is not set."
+            exit 1
+          fi
+
+          HEALTH_URL="${STAGING_URL%/}/api/health"
+          echo "Checking $HEALTH_URL"
+
+          http_code="$(curl -sS --connect-timeout 5 --max-time 10 \
+            -o /tmp/health.json -w "%{http_code}" \
+            "$HEALTH_URL" || true)"
+
+          if [ "$http_code" != "200" ]; then
+            echo "Health check failed (HTTP $http_code)."
+            cat /tmp/health.json || true
+            exit 1
+          fi
+
+          expected_clean="$(printf "%s" "${EXPECTED_SHA:-}" | tr -d '\r\n')"
+          expected_short="${expected_clean:0:7}"
+
+          sha="$(jq -r '.sha // empty' /tmp/health.json | tr -d '\r\n')"
+          db="$(jq -r '.database // empty' /tmp/health.json | tr -d '\r\n')"
+
+          echo "sha='$sha' database='$db'"
+          cat /tmp/health.json || true
+
+          if [ -z "$sha" ]; then
+            echo "SHA missing from health payload."
+            exit 1
+          fi
+
+          sha_short="${sha:0:7}"
+          if ! { [ "$sha" = "$expected_clean" ] || [ "$sha" = "$expected_short" ] || [ "$sha_short" = "$expected_short" ]; }; then
+            echo "Staging SHA mismatch after migration. Expected $expected_short, got $sha_short."
+            exit 1
+          fi
+
+          if [ "$db" != "true" ]; then
+            echo "Database check is not true."
+            exit 1
+          fi
+
+          echo "Post-migration smoke passed."
+
+  deep_security:
+    name: Deep Security (SAST)
+    uses: ./.github/workflows/post-merge-security.yml
+    permissions:
+      contents: read
+      security-events: write
+
+  integration_tests:
+    name: Staging Validation (Integration/E2E on staging)
+    runs-on: ubuntu-latest
+    needs: migration_smoke
+    steps:
+      - name: Placeholder
+        run: |
+          echo "TODO: add integration test command(s)"
+          echo "Example: run Playwright/Cypress tests against STAGING_URL"
+
+  dast:
+    name: OWASP ZAP (DAST, authenticated)
+    needs: migration_smoke
+    uses: ./.github/workflows/dast-zap-auth.yml
+    permissions:
+      contents: read
+      issues: write
+      actions: write
+    with:
+      spider_minutes: 5
+      passive_minutes: 5
+      fail_on_warning: false
+    secrets:
+      zap_username: ${{ secrets.ZAP_USERNAME }}
+      zap_password: ${{ secrets.ZAP_PASSWORD }}
+
+  approve_candidate:
+    name: Manual Approval
+    runs-on: ubuntu-latest
+    needs: [integration_tests, deep_security, dast]
+    environment:
+      name: review
+    steps:
+      - name: Approval checkpoint
+        run: echo "Staging approved."
+
+  release_candidate:
+    name: Draft Release Candidate (RC)
+    runs-on: ubuntu-latest
+    needs: approve_candidate
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Create draft RC tag + draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          git fetch --tags origin
+
+          BASE_VERSION="$(node -p "require('./package.json').version")"
+          IFS='.' read -r MAJOR MINOR _ <<< "$BASE_VERSION"
+          if [ -z "${MAJOR:-}" ] || [ -z "${MINOR:-}" ]; then
+            echo "Invalid version format in package.json: $BASE_VERSION"
+            exit 1
+          fi
+
+          # Only consider FINAL tags (exclude -rc.*) to decide the next patch
+          LATEST_FINAL="$(git tag --list "v${MAJOR}.${MINOR}.[0-9]*" --sort=-v:refname \
+            | grep -E "^v${MAJOR}\.${MINOR}\.[0-9]+$" | head -n 1)"
+
+          if [ -n "$LATEST_FINAL" ]; then
+            PATCH="${LATEST_FINAL#v${MAJOR}.${MINOR}.}"
+            NEXT_PATCH=$((PATCH + 1))
+          else
+            NEXT_PATCH=0
+          fi
+
+          BASE_TAG="v${MAJOR}.${MINOR}.${NEXT_PATCH}"
+
+          # Find last RC for this base tag
+          LAST_RC="$(git tag --list "${BASE_TAG}-rc.*" --sort=-v:refname | head -n 1)"
+          if [ -n "$LAST_RC" ]; then
+            RC_NUM="${LAST_RC##*-rc.}"
+            if ! [[ "$RC_NUM" =~ ^[0-9]+$ ]]; then
+              echo "Invalid rc tag format: $LAST_RC"
+              exit 1
+            fi
+            NEXT_RC=$((RC_NUM + 1))
+          else
+            NEXT_RC=1
+          fi
+
+          RC_TAG="${BASE_TAG}-rc.${NEXT_RC}"
+
+          # Ensure develop didn't move since this run started (safer)
+          git fetch origin develop
+          if [ "$(git rev-parse origin/develop)" != "$GITHUB_SHA" ]; then
+            echo "Develop moved since this workflow started."
+            echo "origin/develop: $(git rev-parse origin/develop)"
+            echo "workflow SHA : $GITHUB_SHA"
+            exit 1
+          fi
+
+          if git rev-parse "$RC_TAG" >/dev/null 2>&1; then
+            echo "Tag $RC_TAG already exists. Exiting."
+            exit 0
+          fi
+
+          git tag "$RC_TAG" "$GITHUB_SHA"
+          git push origin "$RC_TAG"
+
+          if gh release view "$RC_TAG" >/dev/null 2>&1; then
+            echo "Release $RC_TAG already exists. Exiting."
+            exit 0
+          fi
+
+          gh release create "$RC_TAG" \
+            --draft \
+            --title "$RC_TAG" \
+            --target "$GITHUB_SHA" \
+            --generate-notes
