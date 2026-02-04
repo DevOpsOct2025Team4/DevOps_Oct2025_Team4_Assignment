@@ -128,6 +128,7 @@ jobs:
           for k, v in repl.items():
             data = data.replace(k, v);
           pathlib.Path("zap.yaml").write_text(data)'
+          chmod a+rw zap.yaml
 
       - name: ZAP Baseline Scan (authenticated)
         uses: zaproxy/action-baseline@v0.12.0
