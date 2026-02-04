@@ -196,6 +196,9 @@ jobs:
     name: OWASP ZAP (DAST, authenticated)
     needs: migration_smoke
     uses: ./.github/workflows/dast-zap-auth.yml
+    permissions:
+      contents: read
+      issues: write
     with:
       spider_minutes: 5
       passive_minutes: 5
