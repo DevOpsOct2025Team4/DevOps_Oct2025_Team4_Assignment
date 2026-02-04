@@ -199,6 +199,7 @@ jobs:
     permissions:
       contents: read
       issues: write
+      actions: write
     with:
       spider_minutes: 5
       passive_minutes: 5

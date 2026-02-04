@@ -51,6 +51,7 @@ on:
 permissions:
   contents: read
   issues: write
+  actions: write
 
 jobs:
   zap_authenticated:
@@ -132,14 +133,35 @@ jobs:
 
       - name: ZAP Baseline Scan (authenticated)
         id: zap_scan
-        uses: zaproxy/action-baseline@v0.12.0
         continue-on-error: true
-        with:
-          target: ${{ env.STAGING_WEB_URL }}
-          rules_file_name: ".zap/rules.tsv"
-          cmd_options: ${{ inputs.fail_on_warning && '' || '-I' }}
-          artifact_name: "zapscan"
-          fail_action: true
+        env:
+          STAGING_WEB_URL: ${{ env.STAGING_WEB_URL }}
+          FAIL_ON_WARNING: ${{ inputs.fail_on_warning }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${STAGING_WEB_URL:-}" ]; then
+            echo "staging_web_url is required"; exit 1
+          fi
+
+          if [ ! -f .zap/rules.tsv ]; then
+            touch .zap/rules.tsv
+          fi
+
+          chmod -R a+rwx "$GITHUB_WORKSPACE"
+
+          ZAP_ARGS="-t ${STAGING_WEB_URL} -c .zap/rules.tsv -J report_json.json -w report_md.md -r report_html.html"
+          if [ "${FAIL_ON_WARNING}" != "true" ]; then
+            ZAP_ARGS="${ZAP_ARGS} -I"
+          fi
+
+          docker pull ghcr.io/zaproxy/zaproxy:stable -q
+          docker run --rm --user 0 \
+            -v "$GITHUB_WORKSPACE:/zap/wrk/:rw" \
+            -w /zap/wrk \
+            --network=host \
+            -t ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py ${ZAP_ARGS}
 
       - name: Upload ZAP reports
         if: ${{ always() }}
