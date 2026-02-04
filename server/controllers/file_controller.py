@@ -1,10 +1,8 @@
-from flask import request, jsonify
+from flask import g, jsonify
 from services.file_service import FileService
-from services.auth_service import AuthService
 
 
 file_service = FileService()
-auth_service = AuthService()
 
 
 def get_user_files():
@@ -14,18 +12,11 @@ def get_user_files():
     Returns: List of files uploaded by the current user
     """
     try:
-        auth_header = request.headers.get("Authorization")
+        user_id = getattr(g, "user_id", None)
+        if not user_id:
+            return jsonify({"success": False, "error": "Unauthorized"}), 401
 
-        if not auth_header or not auth_header.startswith("Bearer "):
-            return jsonify({"success": False, "error": "No access token provided"}), 401
-
-        access_token = auth_header.split(" ")[1]
-        user = auth_service.verify_token(access_token)
-
-        if not user:
-            return jsonify({"success": False, "error": "Invalid or expired token"}), 401
-
-        files = file_service.get_user_files(user["id"])
+        files = file_service.get_user_files(user_id)
 
         return jsonify({"success": True, "files": files}), 200
 
@@ -43,19 +34,12 @@ def download_file(file_id):
     Returns: File download URL or redirect
     """
     try:
-        auth_header = request.headers.get("Authorization")
-
-        if not auth_header or not auth_header.startswith("Bearer "):
-            return jsonify({"success": False, "error": "No access token provided"}), 401
-
-        access_token = auth_header.split(" ")[1]
-        user = auth_service.verify_token(access_token)
-
-        if not user:
-            return jsonify({"success": False, "error": "Invalid or expired token"}), 401
+        user_id = getattr(g, "user_id", None)
+        if not user_id:
+            return jsonify({"success": False, "error": "Unauthorized"}), 401
 
         # Get file info from database
-        result = file_service.get_file_info(file_id, user["id"])
+        result = file_service.get_file_info(file_id, user_id)
 
         if not result["success"]:
             return (
@@ -105,18 +89,11 @@ def delete_file(file_id):
     Returns: Success message
     """
     try:
-        auth_header = request.headers.get("Authorization")
+        user_id = getattr(g, "user_id", None)
+        if not user_id:
+            return jsonify({"success": False, "error": "Unauthorized"}), 401
 
-        if not auth_header or not auth_header.startswith("Bearer "):
-            return jsonify({"success": False, "error": "No access token provided"}), 401
-
-        access_token = auth_header.split(" ")[1]
-        user = auth_service.verify_token(access_token)
-
-        if not user:
-            return jsonify({"success": False, "error": "Invalid or expired token"}), 401
-
-        result = file_service.delete_file_record(file_id, user["id"])
+        result = file_service.delete_file_record(file_id, user_id)
 
         if result["success"] and result.get("deleted"):
             return (

@@ -18,6 +18,32 @@ const api = axios.create({
 });
 
 const resolveSession = () => getCachedSession() ?? hydrateSessionFromStorage();
+let refreshPromise = null;
+
+async function refreshSession() {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    return null;
+  }
+
+  try {
+    const response = await api.request({
+      url: "refresh",
+      method: "POST",
+      data: { refresh_token: refreshToken },
+      skipAuth: true,
+    });
+
+    if (response.data?.success && response.data?.session?.access_token) {
+      setCachedSession(response.data.session);
+      return response.data.session;
+    }
+  } catch (error) {
+    // fall through to cleanup
+  }
+
+  return null;
+}
 
 api.interceptors.request.use(
   (config) => {
@@ -42,11 +68,40 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (error.response?.status === 401) {
+      const originalRequest = error.config || {};
+      const requestUrl = originalRequest.url || "";
+
+      if (requestUrl.includes("refresh") || originalRequest.skipAuth) {
+        clearSessionStorage();
+        console.error("Unauthorized - please log in");
+        return Promise.reject(error);
+      }
+
+      if (!originalRequest._retry) {
+        originalRequest._retry = true;
+
+        if (!refreshPromise) {
+          refreshPromise = refreshSession().finally(() => {
+            refreshPromise = null;
+          });
+        }
+
+        const session = await refreshPromise;
+        if (session?.access_token) {
+          const headers = originalRequest.headers
+            ? { ...originalRequest.headers }
+            : {};
+          headers.Authorization = `Bearer ${session.access_token}`;
+          return api.request({ ...originalRequest, headers });
+        }
+      }
+
       clearSessionStorage();
       console.error("Unauthorized - please log in");
     }
+
     return Promise.reject(error);
   },
 );

@@ -1,28 +1,18 @@
 import os
 
-from flask import jsonify, request
+from flask import g, jsonify, request
 
 from services.supabase_storage import UploadError, upload_file_to_supabase
 from services.file_service import FileService
-from services.auth_service import AuthService
 
 
 file_service = FileService()
-auth_service = AuthService()
 
 
 def upload():
-    # Verify authentication
-    auth_header = request.headers.get("Authorization")
-
-    if not auth_header or not auth_header.startswith("Bearer "):
+    user_id = getattr(g, "user_id", None)
+    if not user_id:
         return jsonify(error="Authentication required"), 401
-
-    access_token = auth_header.split(" ")[1]
-    user = auth_service.verify_token(access_token)
-
-    if not user:
-        return jsonify(error="Invalid or expired token"), 401
 
     if "file" not in request.files:
         return jsonify(error="Missing file field"), 400
@@ -66,7 +56,7 @@ def upload():
 
         # Save file record to database
         file_service.save_file_record(
-            user_id=user["id"],
+            user_id=user_id,
             filename=payload.get("path", "").split("/")[-1],
             original_filename=file.filename,
             file_path=payload.get("path", ""),
