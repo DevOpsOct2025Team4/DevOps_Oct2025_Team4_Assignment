@@ -79,7 +79,7 @@ jobs:
             echo "Develop head: $DEVELOP_SHA"
             exit 1
           fi
-          gh pr merge "$PR_NUMBER" --merge
+          gh pr merge "$PR_NUMBER" --merge --auto
 
       - name: Create official release tag
         env:
