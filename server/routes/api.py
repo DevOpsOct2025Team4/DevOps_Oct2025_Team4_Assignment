@@ -3,7 +3,7 @@ from flask import Blueprint
 from controllers.health_controller import health
 from controllers.hello_controller import hello
 from controllers.upload_controller import upload
-from controllers.auth_controller import login, logout, verify, refresh, get_users
+from controllers.auth_controller import login, logout, verify, refresh, get_users, create_user
 from controllers.file_controller import get_user_files, download_file, delete_file
 from middleware.auth import attach_user
 
@@ -21,6 +21,7 @@ api_bp.post("/logout")(logout)
 api_bp.get("/verify")(verify)
 api_bp.post("/refresh")(refresh)
 api_bp.get("/users")(get_users)
+api_bp.post("/users")(create_user)
 
 # File routes
 api_bp.get("/files")(get_user_files)

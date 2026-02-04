@@ -7,6 +7,15 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [createFormData, setCreateFormData] = useState({
+    email: "",
+    password: "",
+    role: "user",
+  });
+  const [createError, setCreateError] = useState("");
+  const [createSuccess, setCreateSuccess] = useState("");
+  const [creating, setCreating] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -57,6 +66,40 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    setCreating(true);
+    setCreateError("");
+    setCreateSuccess("");
+
+    try {
+      const { response, data } = await apiRequest("users", {
+        method: "POST",
+        body: JSON.stringify(createFormData),
+      });
+
+      if (response?.status === 401) {
+        setCreateError("Session expired. Please log in again.");
+        navigate("/login");
+        return;
+      }
+
+      if (data?.success) {
+        setCreateSuccess("User created successfully!");
+        setCreateFormData({ email: "", password: "", role: "user" });
+        setShowCreateForm(false);
+        fetchUsers(); // Refresh the user list
+      } else {
+        setCreateError(data?.error || "Failed to create user.");
+      }
+    } catch (err) {
+      console.error("Failed to create user:", err);
+      setCreateError("Failed to create user.");
+    } finally {
+      setCreating(false);
+    }
+  };
+
   if (!user) {
     return <div>Loading...</div>;
   }
@@ -84,10 +127,98 @@ export default function AdminDashboard() {
         <div className="mb-8 rounded-[10px] bg-white p-6 shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xl font-bold">Registered Users</h2>
-            <span className="text-sm text-gray-600">
-              Total: {users.length}
-            </span>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-600">
+                Total: {users.length}
+              </span>
+              <button
+                onClick={() => {
+                  setShowCreateForm(!showCreateForm);
+                  setCreateError("");
+                  setCreateSuccess("");
+                }}
+                className="cursor-pointer rounded-[5px] bg-[#28a745] px-4 py-2 text-white hover:bg-[#218838]"
+              >
+                {showCreateForm ? "Cancel" : "+ Create User"}
+              </button>
+            </div>
           </div>
+
+          {createSuccess && (
+            <div className="mb-4 rounded-[5px] bg-[#d4edda] p-4 text-[#155724]">
+              {createSuccess}
+            </div>
+          )}
+
+          {showCreateForm && (
+            <form
+              onSubmit={handleCreateUser}
+              className="mb-6 rounded-[10px] border border-gray-200 bg-gray-50 p-6"
+            >
+              <h3 className="mb-4 text-lg font-semibold">Create New User</h3>
+
+              {createError && (
+                <div className="mb-4 rounded-[5px] bg-[#f8d7da] p-4 text-[#721c24]">
+                  {createError}
+                </div>
+              )}
+
+              <div className="mb-4">
+                <label className="mb-2 block text-sm font-semibold">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  value={createFormData.email}
+                  onChange={(e) =>
+                    setCreateFormData({ ...createFormData, email: e.target.value })
+                  }
+                  required
+                  className="w-full rounded-[5px] border border-gray-300 px-4 py-2"
+                  placeholder="user@example.com"
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="mb-2 block text-sm font-semibold">
+                  Password *
+                </label>
+                <input
+                  type="password"
+                  value={createFormData.password}
+                  onChange={(e) =>
+                    setCreateFormData({ ...createFormData, password: e.target.value })
+                  }
+                  required
+                  minLength={6}
+                  className="w-full rounded-[5px] border border-gray-300 px-4 py-2"
+                  placeholder="Minimum 6 characters"
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="mb-2 block text-sm font-semibold">Role *</label>
+                <select
+                  value={createFormData.role}
+                  onChange={(e) =>
+                    setCreateFormData({ ...createFormData, role: e.target.value })
+                  }
+                  className="w-full rounded-[5px] border border-gray-300 px-4 py-2"
+                >
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+
+              <button
+                type="submit"
+                disabled={creating}
+                className="cursor-pointer rounded-[5px] bg-[#007bff] px-6 py-2 text-white hover:bg-[#0056b3] disabled:bg-gray-400"
+              >
+                {creating ? "Creating..." : "Create User"}
+              </button>
+            </form>
+          )}
 
           {error && (
             <div className="mb-4 rounded-[5px] bg-[#f8d7da] p-4 text-[#721c24]">

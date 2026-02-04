@@ -11,7 +11,16 @@ class AuthService:
         if not supabase_url or not supabase_key:
             raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
 
+        self.supabase_url = supabase_url
+        self.supabase_key = supabase_key
         self.supabase: Client = create_client(supabase_url, supabase_key)
+
+    def _admin_client(self) -> Client:
+        """
+        Create a fresh admin client using the service role key.
+        This avoids session contamination from user auth flows.
+        """
+        return create_client(self.supabase_url, self.supabase_key)
 
     def login(self, email: str, password: str) -> Dict[str, Any]:
         """
@@ -104,11 +113,20 @@ class AuthService:
         Returns list of users with id, email, and role
         """
         try:
-            response = self.supabase.auth.admin.list_users()
+            admin_client = self._admin_client()
+            response = admin_client.auth.admin.list_users()
 
-            if response:
+            users_list = []
+            if hasattr(response, "users") and response.users is not None:
+                users_list = response.users
+            elif isinstance(response, dict):
+                users_list = response.get("users", [])
+            elif isinstance(response, list):
+                users_list = response
+
+            if users_list:
                 users = []
-                for user in response:
+                for user in users_list:
                     users.append({
                         "id": user.id,
                         "email": user.email,
@@ -119,7 +137,44 @@ class AuthService:
                     "success": True,
                     "users": users,
                 }
+
+            return {"success": True, "users": []}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def create_user(self, email: str, password: str, role: str = "user") -> Dict[str, Any]:
+        """
+        Create a new user account in Supabase
+        Args:
+            email: User's email address
+            password: User's password
+            role: User's role (default: "user", can be "admin")
+        Returns:
+            Dict with success status and user data or error message
+        """
+        try:
+            # Create user with Supabase admin API
+            admin_client = self._admin_client()
+            response = admin_client.auth.admin.create_user({
+                "email": email,
+                "password": password,
+                "email_confirm": True,
+                "user_metadata": {
+                    "role": role
+                }
+            })
+
+            if response.user:
+                return {
+                    "success": True,
+                    "user": {
+                        "id": response.user.id,
+                        "email": response.user.email,
+                        "role": role,
+                    },
+                    "message": "User created successfully"
+                }
             else:
-                return {"success": False, "error": "No users found"}
+                return {"success": False, "error": "Failed to create user"}
         except Exception as e:
             return {"success": False, "error": str(e)}
