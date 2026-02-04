@@ -1,10 +1,13 @@
-from flask import request, jsonify
+from flask import g, request, jsonify
+
+from middleware.auth import public_route
 from services.auth_service import AuthService
 
 
 auth_service = AuthService()
 
 
+@public_route
 def login():
     """
     POST /api/login
@@ -45,12 +48,8 @@ def logout():
     Returns: { "success": true, "message": "Logged out successfully" }
     """
     try:
-        auth_header = request.headers.get("Authorization")
         data = request.get_json(silent=True) or {}
         refresh_token = data.get("refresh_token")
-
-        if not auth_header or not auth_header.startswith("Bearer "):
-            return jsonify({"success": False, "error": "No access token provided"}), 401
 
         if not refresh_token:
             return (
@@ -58,7 +57,10 @@ def logout():
                 400,
             )
 
-        access_token = auth_header.split(" ")[1]
+        access_token = getattr(g, "access_token", None)
+        if not access_token:
+            return jsonify({"success": False, "error": "No access token provided"}), 401
+
         result = auth_service.logout(access_token, refresh_token)
 
         if result["success"]:
@@ -77,18 +79,11 @@ def verify():
     Returns: { "success": true, "user": {...} }
     """
     try:
-        auth_header = request.headers.get("Authorization")
-
-        if not auth_header or not auth_header.startswith("Bearer "):
-            return jsonify({"success": False, "error": "No access token provided"}), 401
-
-        access_token = auth_header.split(" ")[1]
-        user = auth_service.verify_token(access_token)
-
+        user = getattr(g, "current_user", None)
         if user:
             return jsonify({"success": True, "user": user}), 200
-        else:
-            return jsonify({"success": False, "error": "Invalid or expired token"}), 401
+
+        return jsonify({"success": False, "error": "Invalid or expired token"}), 401
 
     except Exception as e:
         return (
@@ -97,6 +92,7 @@ def verify():
         )
 
 
+@public_route
 def refresh():
     """
     POST /api/refresh

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiRequest, getStoredUser, logout } from "../lib/api";
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
@@ -11,38 +12,40 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const userData = localStorage.getItem("user");
-    const token = localStorage.getItem("access_token");
+    const parsedUser = getStoredUser();
 
-    if (userData && token) {
-      const parsedUser = JSON.parse(userData);
-      // Check if user is not admin
-      if (parsedUser.role === "admin") {
-        navigate("/admin");
-        return;
-      }
-      setUser(parsedUser);
-      fetchFiles(token);
-    } else {
+    if (!parsedUser) {
       navigate("/login");
+      return;
     }
+
+    if (parsedUser.role === "admin") {
+      navigate("/admin");
+      return;
+    }
+
+    setUser(parsedUser);
+    fetchFiles();
   }, [navigate]);
 
-  const fetchFiles = async (token) => {
+  const fetchFiles = async () => {
     try {
-      const response = await fetch("/api/files", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const { response, data } = await apiRequest("files");
 
-      const data = await response.json();
+      if (response?.status === 401) {
+        setError("Session expired. Please log in again.");
+        navigate("/login");
+        return;
+      }
 
-      if (data.success) {
+      if (data?.success) {
         setFiles(data.files || []);
+      } else {
+        setError(data?.error || "Failed to fetch files.");
       }
     } catch (err) {
       console.error("Failed to fetch files:", err);
+      setError("Failed to fetch files.");
     } finally {
       setLoading(false);
     }
@@ -55,26 +58,20 @@ export default function Dashboard() {
     setUploading(true);
     setError("");
 
-    const token = localStorage.getItem("access_token");
     const formData = new FormData();
     formData.append("file", uploadFile);
 
     try {
-      const response = await fetch("/api/upload", {
+      const { response, data } = await apiRequest("upload", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
         body: formData,
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
+      if (response?.status >= 200 && response?.status < 300) {
         setUploadFile(null);
-        fetchFiles(token);
+        fetchFiles();
       } else {
-        setError(data.error || "Upload failed");
+        setError(data?.error || "Upload failed");
       }
     } catch (err) {
       setError("Upload failed");
@@ -84,18 +81,14 @@ export default function Dashboard() {
   };
 
   const handleDownload = async (fileId, filename) => {
-    const token = localStorage.getItem("access_token");
-
     try {
-      const response = await fetch(`/api/files/${fileId}/download`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const { response, data } = await apiRequest(`files/${fileId}/download`);
 
-      const data = await response.json();
-
-      if (response.ok && data.download_url) {
+      if (
+        response?.status >= 200 &&
+        response?.status < 300 &&
+        data?.download_url
+      ) {
         // Fetch the file as a blob to force download
         const fileResponse = await fetch(data.download_url);
         const blob = await fileResponse.blob();
@@ -112,7 +105,7 @@ export default function Dashboard() {
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
       } else {
-        setError(data.error || "Download failed");
+        setError(data?.error || "Download failed");
       }
     } catch (err) {
       console.error("Failed to download file:", err);
@@ -123,40 +116,28 @@ export default function Dashboard() {
   const handleDelete = async (fileId) => {
     if (!confirm("Are you sure you want to delete this file?")) return;
 
-    const token = localStorage.getItem("access_token");
-
     try {
-      const response = await fetch(`/api/files/${fileId}`, {
+      const { response } = await apiRequest(`files/${fileId}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
 
-      if (response.ok) {
-        fetchFiles(token);
+      if (response?.status >= 200 && response?.status < 300) {
+        fetchFiles();
+      } else {
+        setError("Failed to delete file.");
       }
     } catch (err) {
       console.error("Failed to delete file:", err);
+      setError("Failed to delete file.");
     }
   };
 
   const handleLogout = async () => {
-    const token = localStorage.getItem("access_token");
-
     try {
-      await fetch("/api/logout", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      await logout();
     } catch (err) {
       console.error("Logout error:", err);
     } finally {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
-      localStorage.removeItem("user");
       navigate("/login");
     }
   };
