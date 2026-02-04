@@ -1,6 +1,6 @@
 from typing import Optional, Tuple
 
-from flask import g, jsonify, request
+from flask import current_app, g, jsonify, request
 
 from services.auth_service import AuthService
 
@@ -31,7 +31,11 @@ def attach_user() -> Optional[Tuple[dict, int]]:
     if request.method == "OPTIONS":
         return None
 
-    view_fn = request.endpoint and request.app.view_functions.get(request.endpoint)
+    view_fn = (
+        request.endpoint
+        and current_app
+        and current_app.view_functions.get(request.endpoint)
+    )
     if view_fn and getattr(view_fn, "_is_public", False):
         return None
 
