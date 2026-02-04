@@ -3,8 +3,10 @@ import os
 from flask import current_app, jsonify
 
 from services.health_service import check_database
+from middleware.auth import public_route
 
 
+@public_route
 def health():
     database = check_database(os.getenv("DATABASE_URL"), current_app.logger)
     sha = (
