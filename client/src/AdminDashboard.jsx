@@ -16,6 +16,8 @@ export default function AdminDashboard() {
   const [createError, setCreateError] = useState("");
   const [createSuccess, setCreateSuccess] = useState("");
   const [creating, setCreating] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -97,6 +99,41 @@ export default function AdminDashboard() {
       setCreateError("Failed to create user.");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteConfirm) return;
+    
+    setDeleting(true);
+
+    try {
+      const { response, data } = await apiRequest(
+        `users/${deleteConfirm.id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (response?.status === 401) {
+        setError("Session expired. Please log in again.");
+        navigate("/login");
+        return;
+      }
+
+      if (data?.success) {
+        setDeleteConfirm(null);
+        fetchUsers(); // Refresh the user list
+      } else {
+        setError(data?.error || "Failed to delete user.");
+        setDeleteConfirm(null);
+      }
+    } catch (err) {
+      console.error("Failed to delete user:", err);
+      setError("Failed to delete user.");
+      setDeleteConfirm(null);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -241,6 +278,7 @@ export default function AdminDashboard() {
                     <th className="px-4 py-3 text-left font-semibold">Role</th>
                     <th className="px-4 py-3 text-left font-semibold">User ID</th>
                     <th className="px-4 py-3 text-left font-semibold">Created At</th>
+                    <th className="px-4 py-3 text-center font-semibold">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -269,6 +307,29 @@ export default function AdminDashboard() {
                           ? new Date(u.created_at).toLocaleDateString()
                           : "N/A"}
                       </td>
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          onClick={() =>
+                            setDeleteConfirm({
+                              id: u.id,
+                              email: u.email,
+                            })
+                          }
+                          disabled={u.id === user.id}
+                          title={
+                            u.id === user.id
+                              ? "You cannot delete your own account"
+                              : ""
+                          }
+                          className={`rounded-[5px] px-3 py-1 text-xs text-white ${
+                            u.id === user.id
+                              ? "cursor-not-allowed bg-gray-400"
+                              : "cursor-pointer bg-[#dc3545] hover:bg-[#c82333]"
+                          }`}
+                        >
+                          Delete
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -276,6 +337,34 @@ export default function AdminDashboard() {
             </div>
           )}
         </div>
+
+        {deleteConfirm && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="rounded-[10px] bg-white p-6 shadow-lg">
+              <h3 className="mb-4 text-lg font-bold">Confirm Delete</h3>
+              <p className="mb-6 text-gray-600">
+                Are you sure you want to delete user <strong>{deleteConfirm.email}</strong>?
+                This action cannot be undone.
+              </p>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setDeleteConfirm(null)}
+                  disabled={deleting}
+                  className="cursor-pointer rounded-[5px] bg-gray-400 px-4 py-2 text-white hover:bg-gray-500 disabled:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteUser}
+                  disabled={deleting}
+                  className="cursor-pointer rounded-[5px] bg-[#dc3545] px-4 py-2 text-white hover:bg-[#c82333] disabled:bg-gray-300"
+                >
+                  {deleting ? "Deleting..." : "Delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

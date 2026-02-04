@@ -8,6 +8,8 @@ Write-Host "Building and starting backend containers..." -ForegroundColor Cyan
 docker-compose down
 docker-compose up -d --build
 
+# docker-compose up -d (if no changes to backend)
+
 Write-Host "Waiting for backend to be ready..." -ForegroundColor Cyan
 Start-Sleep -Seconds 8
 

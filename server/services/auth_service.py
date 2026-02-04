@@ -178,3 +178,21 @@ class AuthService:
                 return {"success": False, "error": "Failed to create user"}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    def delete_user(self, user_id: str) -> Dict[str, Any]:
+        """
+        Delete a user account from Supabase
+        Args:
+            user_id: The ID of the user to delete
+        Returns:
+            Dict with success status or error message
+        """
+        try:
+            admin_client = self._admin_client()
+            admin_client.auth.admin.delete_user(user_id)
+            return {
+                "success": True,
+                "message": "User deleted successfully"
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}

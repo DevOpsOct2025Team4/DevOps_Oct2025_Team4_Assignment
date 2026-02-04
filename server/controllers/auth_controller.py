@@ -223,3 +223,50 @@ def create_user():
             jsonify({"success": False, "error": f"Failed to create user: {str(e)}"}),
             500,
         )
+
+
+def delete_user(user_id):
+    """
+    DELETE /api/users/<user_id>
+    Admin only endpoint to delete a user
+    Returns: { "success": true, "message": "User deleted successfully" }
+    """
+    try:
+        # Check if user is admin
+        user = g.get("current_user")
+        
+        if not user:
+            return jsonify({"success": False, "error": "No user in context"}), 401
+        
+        user_role = user.get("role", "").lower() if user.get("role") else ""
+        
+        if user_role != "admin":
+            return jsonify({
+                "success": False, 
+                "error": "Unauthorized. Admin access required"
+            }), 403
+
+        if not user_id:
+            return jsonify({"success": False, "error": "User ID is required"}), 400
+
+        if user_id == user.get("id"):
+            return (
+                jsonify({"success": False, "error": "You cannot delete your own account"}),
+                400,
+            )
+
+        result = get_auth_service().delete_user(user_id)
+
+        if result["success"]:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        print(f"EXCEPTION in delete_user: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return (
+            jsonify({"success": False, "error": f"Failed to delete user: {str(e)}"}),
+            500,
+        )
