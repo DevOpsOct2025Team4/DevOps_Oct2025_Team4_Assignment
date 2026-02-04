@@ -1,0 +1,51 @@
+env:
+  contexts:
+    - name: "staging"
+      urls:
+        - "__STAGING_WEB_URL__"
+      includePaths:
+        - "__STAGING_WEB_URL__.*"
+      authentication:
+        method: "script"
+        parameters:
+          script: ".zap/auth.js"
+          scriptEngine: "ECMAScript"
+          loginUrl: "__ZAP_LOGIN_URL__"
+          usernameField: "__ZAP_USERNAME_FIELD__"
+          passwordField: "__ZAP_PASSWORD_FIELD__"
+        verification:
+          method: "poll"
+          loggedInIndicator: "__ZAP_LOGGED_IN_REGEX__"
+          loggedOutIndicator: "__ZAP_LOGGED_OUT_REGEX__"
+      sessionManagement:
+        method: "cookie"
+      users:
+        - name: "zap-user"
+          credentials:
+            username: "__ZAP_USERNAME__"
+            password: "__ZAP_PASSWORD__"
+  scripts:
+    - name: "auth-script"
+      type: "authentication"
+      engine: "ECMAScript"
+      file: ".zap/auth.js"
+      enabled: true
+    - name: "auth-header"
+      type: "httpsender"
+      engine: "ECMAScript"
+      file: ".zap/httpsender.js"
+      enabled: true
+jobs:
+  - type: "spider"
+    parameters:
+      context: "staging"
+      user: "zap-user"
+      maxDuration: __SPIDER_MINUTES__
+  - type: "passiveScan-wait"
+    parameters:
+      maxDuration: __PASSIVE_MINUTES__
+  - type: "report"
+    parameters:
+      template: "traditional-html"
+      reportDir: "/zap/wrk"
+      reportFile: "report_html.html"

@@ -2,10 +2,11 @@ name: Post Merge Security
 # Done after a merges to main. Runs Security & Quality for CodeQL for a deep analysis.
 
 on:
+  workflow_call:
   #schedule:
   # - cron: Plans to run every week. Wont be active for this assignment XXX
   push:
-    branches: [main, develop]
+    branches: [main]
 
 permissions:
   contents: read

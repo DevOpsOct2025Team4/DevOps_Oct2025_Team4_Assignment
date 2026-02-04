@@ -1,0 +1,26 @@
+name: Main Guard
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  only_develop:
+    name: only_develop
+    runs-on: ubuntu-latest
+    env:
+      BASE_REF: ${{ github.base_ref }}
+      HEAD_REF: ${{ github.head_ref }}
+    steps:
+      - name: Allow only develop -> main PRs
+        run: |
+          set -euo pipefail
+          echo "Base: $BASE_REF"
+          echo "Head: $HEAD_REF"
+
+          if [ "$HEAD_REF" != "develop" ]; then
+            echo "❌ Only 'develop' is allowed to merge into 'main'."
+            exit 1
+          fi
+
+          echo "✅ This PR is from develop."
