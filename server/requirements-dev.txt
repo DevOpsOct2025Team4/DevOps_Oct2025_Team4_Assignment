@@ -1,2 +1,4 @@
 ruff
 pip-audit
+pytest
+pytest-bdd
