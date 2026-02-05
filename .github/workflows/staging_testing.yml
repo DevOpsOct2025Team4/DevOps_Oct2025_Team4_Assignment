@@ -18,6 +18,35 @@ jobs:
     with:
       upload_client_artifact: true
 
+  notify_build_failure:
+    name: Notify Build Failure
+    runs-on: ubuntu-latest
+    needs: ci
+    if: failure()
+    steps:
+      - name: Notify Discord (Build Failed)
+        run: |
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK_DEV }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "🔨 Build Failed",
+              "description": "CI build or lint checks failed on **${{ github.ref_name }}**",
+              "color": 15158332,
+              "fields": [
+                {"name": "Commit", "value": "[${GITHUB_SHA:0:7}]($COMMIT_URL)", "inline": true},
+                {"name": "Author", "value": "${{ github.actor }}", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Workflow", "value": "[View Run]($RUN_URL)", "inline": false}
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
+
   staging_deploy:
     name: Staging Deploy (Health + SHA)
     runs-on: ubuntu-latest
@@ -83,6 +112,64 @@ jobs:
           echo "Staging did not report the expected SHA in time."
           exit 1
 
+  notify_deploy_success:
+    name: Notify Deploy Success
+    runs-on: ubuntu-latest
+    needs: staging_deploy
+    if: success()
+    steps:
+      - name: Notify Discord (Staging Deploy Success)
+        run: |
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK_DEVOPS }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "✅ Staging Deploy Success",
+              "description": "Staging is healthy and running expected commit on **${{ github.ref_name }}**",
+              "color": 3066993,
+              "fields": [
+                {"name": "Commit", "value": "[${GITHUB_SHA:0:7}]($COMMIT_URL)", "inline": true},
+                {"name": "Author", "value": "${{ github.actor }}", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Workflow", "value": "[View Run]($RUN_URL)", "inline": false}
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
+
+  notify_deploy_failure:
+    name: Notify Deploy Failure
+    runs-on: ubuntu-latest
+    needs: staging_deploy
+    if: failure()
+    steps:
+      - name: Notify Discord (Staging Deploy Failed)
+        run: |
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK_DEVOPS }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "🚨 Staging Deploy Failed",
+              "description": "Staging health check or SHA verification failed on **${{ github.ref_name }}**",
+              "color": 15158332,
+              "fields": [
+                {"name": "Commit", "value": "[${GITHUB_SHA:0:7}]($COMMIT_URL)", "inline": true},
+                {"name": "Author", "value": "${{ github.actor }}", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Workflow", "value": "[View Run]($RUN_URL)", "inline": false}
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
+
   migrate_staging:
     name: Run Staging DB Migrations
     runs-on: ubuntu-latest
@@ -114,6 +201,64 @@ jobs:
             exit 1
           fi
           alembic upgrade head
+
+  notify_migration_success:
+    name: Notify Migration Success
+    runs-on: ubuntu-latest
+    needs: migrate_staging
+    if: success()
+    steps:
+      - name: Notify Discord (Migration Success)
+        run: |
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK_BACKEND }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "✅ Database Migration Success",
+              "description": "Alembic migration completed successfully on staging for **${{ github.ref_name }}**",
+              "color": 3066993,
+              "fields": [
+                {"name": "Commit", "value": "[${GITHUB_SHA:0:7}]($COMMIT_URL)", "inline": true},
+                {"name": "Author", "value": "${{ github.actor }}", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Workflow", "value": "[View Run]($RUN_URL)", "inline": false}
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
+
+  notify_migration_failure:
+    name: Notify Migration Failure
+    runs-on: ubuntu-latest
+    needs: migrate_staging
+    if: failure()
+    steps:
+      - name: Notify Discord (Migration Failed)
+        run: |
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK_BACKEND }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "🗄️ Database Migration Failed",
+              "description": "Alembic migration failed on staging for **${{ github.ref_name }}**",
+              "color": 15158332,
+              "fields": [
+                {"name": "Commit", "value": "[${GITHUB_SHA:0:7}]($COMMIT_URL)", "inline": true},
+                {"name": "Author", "value": "${{ github.actor }}", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Workflow", "value": "[View Run]($RUN_URL)", "inline": false}
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
 
   migration_smoke:
     name: Post-migration Smoke (Health + DB OK)
@@ -175,12 +320,99 @@ jobs:
 
           echo "Post-migration smoke passed."
 
+  notify_smoke_success:
+    name: Notify Smoke Test Success
+    runs-on: ubuntu-latest
+    needs: migration_smoke
+    if: success()
+    steps:
+      - name: Notify Discord (Post-Migration Smoke Success)
+        run: |
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK_BACKEND }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "✅ Post-Migration Smoke Test Success",
+              "description": "Post-migration health and DB checks passed on staging for **${{ github.ref_name }}**",
+              "color": 3066993,
+              "fields": [
+                {"name": "Commit", "value": "[${GITHUB_SHA:0:7}]($COMMIT_URL)", "inline": true},
+                {"name": "Author", "value": "${{ github.actor }}", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Workflow", "value": "[View Run]($RUN_URL)", "inline": false}
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
+
+  notify_smoke_failure:
+    name: Notify Smoke Test Failure
+    runs-on: ubuntu-latest
+    needs: migration_smoke
+    if: failure()
+    steps:
+      - name: Notify Discord (Post-Migration Smoke Failed)
+        run: |
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK_BACKEND }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "💨 Post-Migration Smoke Test Failed",
+              "description": "Post-migration health or DB checks failed on staging for **${{ github.ref_name }}**",
+              "color": 15158332,
+              "fields": [
+                {"name": "Commit", "value": "[${GITHUB_SHA:0:7}]($COMMIT_URL)", "inline": true},
+                {"name": "Author", "value": "${{ github.actor }}", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Workflow", "value": "[View Run]($RUN_URL)", "inline": false}
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
+
   deep_security:
     name: Deep Security (SAST)
     uses: ./.github/workflows/post-merge-security.yml
     permissions:
       contents: read
       security-events: write
+
+  notify_security_failure:
+    name: Notify Security Scan Failure
+    runs-on: ubuntu-latest
+    needs: deep_security
+    if: failure()
+    steps:
+      - name: Notify Discord (SAST Failed)
+        run: |
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK_QA }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "🔒 SAST Security Scan Failed",
+              "description": "Deep security scan detected issues on **${{ github.ref_name }}**",
+              "color": 15158332,
+              "fields": [
+                {"name": "Commit", "value": "[${GITHUB_SHA:0:7}]($COMMIT_URL)", "inline": true},
+                {"name": "Author", "value": "${{ github.actor }}", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Workflow", "value": "[View Run]($RUN_URL)", "inline": false}
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
 
   integration_tests:
     name: Staging Validation (Integration/E2E on staging)
@@ -191,6 +423,35 @@ jobs:
         run: |
           echo "TODO: add integration test command(s)"
           echo "Example: run Playwright/Cypress tests against STAGING_URL"
+
+  notify_integration_failure:
+    name: Notify Integration Test Failure
+    runs-on: ubuntu-latest
+    needs: integration_tests
+    if: failure()
+    steps:
+      - name: Notify Discord (Integration Tests Failed)
+        run: |
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK_QA }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "🧪 Integration Tests Failed",
+              "description": "E2E or integration tests failed on staging for **${{ github.ref_name }}**",
+              "color": 15158332,
+              "fields": [
+                {"name": "Commit", "value": "[${GITHUB_SHA:0:7}]($COMMIT_URL)", "inline": true},
+                {"name": "Author", "value": "${{ github.actor }}", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Workflow", "value": "[View Run]($RUN_URL)", "inline": false}
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
 
   dast:
     name: OWASP ZAP (DAST, authenticated)
@@ -208,6 +469,35 @@ jobs:
       zap_username: ${{ secrets.ZAP_USERNAME }}
       zap_password: ${{ secrets.ZAP_PASSWORD }}
 
+  notify_dast_failure:
+    name: Notify DAST Failure
+    runs-on: ubuntu-latest
+    needs: dast
+    if: failure()
+    steps:
+      - name: Notify Discord (DAST Failed)
+        run: |
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK_QA }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "🛡️ DAST Security Scan Failed",
+              "description": "OWASP ZAP detected vulnerabilities on staging for **${{ github.ref_name }}**",
+              "color": 15158332,
+              "fields": [
+                {"name": "Commit", "value": "[${GITHUB_SHA:0:7}]($COMMIT_URL)", "inline": true},
+                {"name": "Author", "value": "${{ github.actor }}", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Workflow", "value": "[View Run]($RUN_URL)", "inline": false}
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
+
   approve_candidate:
     name: Manual Approval
     runs-on: ubuntu-latest
@@ -215,6 +505,28 @@ jobs:
     environment:
       name: review
     steps:
+      - name: Notify Discord (Waiting for Approval)
+        run: |
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "🔔 Staging Ready for Approval",
+              "description": "All checks passed. Release candidate is **waiting for manual approval**",
+              "color": 16776960,
+              "fields": [
+                {"name": "Commit", "value": "[${GITHUB_SHA:0:7}]($COMMIT_URL)", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Workflow", "value": "[Review & Approve]($RUN_URL)", "inline": false}
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
+
       - name: Approval checkpoint
         run: echo "Staging approved."
 

@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: db
+  labels:
+    app: devops-assignment
+    tier: db
+spec:
+  serviceName: db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devops-assignment
+      tier: db
+  template:
+    metadata:
+      labels:
+        app: devops-assignment
+        tier: db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          securityContext:
+            allowPrivilegeEscalation: false
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: app
+            - name: POSTGRES_USER
+              value: app
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            - name: db-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "app", "-d", "app"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "app", "-d", "app"]
+            initialDelaySeconds: 15
+            periodSeconds: 20
+  volumeClaimTemplates:
+    - metadata:
+        name: db-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
