@@ -24,6 +24,18 @@ def public_route(fn):
     return fn
 
 
+def require_role(role: str):
+    """
+    Restrict a view function to a specific user role.
+    """
+
+    def decorator(fn):
+        setattr(fn, "_required_role", role)
+        return fn
+
+    return decorator
+
+
 def attach_user() -> Optional[Tuple[dict, int]]:
     """
     Attach the authenticated user to the request context (g.current_user).
@@ -56,4 +68,9 @@ def attach_user() -> Optional[Tuple[dict, int]]:
     g.current_user = user
     g.user_id = user.get("id")
     g.access_token = access_token
+
+    required_role = view_fn and getattr(view_fn, "_required_role", None)
+    if required_role and user.get("role") != required_role:
+        return jsonify({"success": False, "error": "Forbidden"}), 403
+
     return None
