@@ -1,6 +1,7 @@
 *** Settings ***
 Library    SeleniumLibrary    timeout=10
 Library    OperatingSystem
+Library    String
 
 Suite Setup    Open Login Page
 Suite Teardown    Close Browser
@@ -41,11 +42,39 @@ Ensure Logged In
     Login With Staging Credentials
     Wait Until Page Contains Element    xpath://h1[contains(., "File Dashboard") or contains(., "Admin Dashboard")]    timeout=15
 
+Ensure User Logged In
+    Require Credentials
+    Go To Login Page
+    Login With Staging Credentials
+    Wait Until Page Contains Element    xpath://h1[contains(., "File Dashboard") or contains(., "Admin Dashboard")]    timeout=15
+    ${is_user}=    Run Keyword And Return Status    Page Should Contain Element    xpath://h1[contains(., "File Dashboard")]
+    IF    not ${is_user}
+        Skip    ROBOT_USERNAME must be a non-admin user for user dashboard tests
+    END
+
 Login With Staging Credentials
     Input Text    css:input#email    ${USERNAME}
     Input Password    css:input#password    ${PASSWORD}
     Click Button    css:button[type="submit"]
     Wait Until Page Contains Element    xpath://h1[contains(., "File Dashboard") or contains(., "Admin Dashboard")]    timeout=15
+
+Clear Login Inputs
+    Go To Login Page
+    Clear Element Text    css:input#email
+    Clear Element Text    css:input#password
+
+Click Login Button
+    Click Button    css:button[type="submit"]
+
+Field Should Be Missing
+    [Arguments]    ${locator}
+    ${selector}=    Set Variable    ${locator}
+    ${selector}=    Replace String    ${selector}    css:    ${EMPTY}
+    ${missing}=    Execute Javascript    return document.querySelector('${selector}').validity.valueMissing;
+    Should Be True    ${missing}
+
+Wait For Login Error
+    Wait Until Page Contains Element    xpath://div[contains(@class, "text-red-600")]    timeout=10
 
 Create Temp Upload File
     ${ts}=    Get Time    epoch
@@ -95,16 +124,45 @@ Login With Staging Secrets
     Go To Login Page
     Login With Staging Credentials
 
-Upload Download Delete File
-    Require Credentials
-    Ensure Logged In
+USER_FileOperations(Upload,Download,Delete)
+    Ensure User Logged In
     ${filename}    ${filepath}=    Create Temp Upload File
     Upload File And Wait    ${filepath}    ${filename}
     ${row}=    Find File Row    ${filename}
     Download File From Row    ${row}
     Delete File From Row    ${row}
 
+USER_UnAuth
+    Ensure User Logged In
+    Go To    ${BASE_URL}/admin
+    Wait Until Page Contains Element    xpath://h1[contains(., "File Dashboard")]    timeout=10
+    Page Should Not Contain    Admin Dashboard
+
 Logout Works
     Require Credentials
     Ensure Logged In
     Logout From Dashboard
+USER_WrongLogin
+    Clear Login Inputs
+    Input Text    css:input#email    wrong-user@example.com
+    Input Password    css:input#password    wrong-password
+    Click Login Button
+    Wait For Login Error
+
+USER_NoUsername
+    Clear Login Inputs
+    Input Password    css:input#password    some-password
+    Click Login Button
+    Field Should Be Missing    css:input#email
+
+USER_NoPassword
+    Clear Login Inputs
+    Input Text    css:input#email    user@example.com
+    Click Login Button
+    Field Should Be Missing    css:input#password
+
+USER_NoInput
+    Clear Login Inputs
+    Click Login Button
+    Field Should Be Missing    css:input#email
+    Field Should Be Missing    css:input#password
