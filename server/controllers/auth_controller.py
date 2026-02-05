@@ -143,17 +143,19 @@ def get_users():
     try:
         # Check if user is admin
         user = g.get("current_user")
-        
+
         if not user:
             return jsonify({"success": False, "error": "No user in context"}), 401
-        
+
         user_role = user.get("role", "").lower() if user.get("role") else ""
-        
+
         if user_role != "admin":
-            return jsonify({
-                "success": False, 
-                "error": "Unauthorized. Admin access required"
-            }), 403
+            return (
+                jsonify(
+                    {"success": False, "error": "Unauthorized. Admin access required"}
+                ),
+                403,
+            )
 
         result = get_auth_service().get_all_users()
 
@@ -166,6 +168,7 @@ def get_users():
     except Exception as e:
         print(f"EXCEPTION in get_users: {str(e)}")
         import traceback
+
         traceback.print_exc()
         return (
             jsonify({"success": False, "error": f"Failed to fetch users: {str(e)}"}),
@@ -183,17 +186,19 @@ def create_user():
     try:
         # Check if user is admin
         user = g.get("current_user")
-        
+
         if not user:
             return jsonify({"success": False, "error": "No user in context"}), 401
-        
+
         user_role = user.get("role", "").lower() if user.get("role") else ""
-        
+
         if user_role != "admin":
-            return jsonify({
-                "success": False, 
-                "error": "Unauthorized. Admin access required"
-            }), 403
+            return (
+                jsonify(
+                    {"success": False, "error": "Unauthorized. Admin access required"}
+                ),
+                403,
+            )
 
         data = request.get_json()
 
@@ -205,11 +210,17 @@ def create_user():
         role = data.get("role", "user")
 
         if not email or not password:
-            return jsonify({"success": False, "error": "Email and password are required"}), 400
+            return (
+                jsonify({"success": False, "error": "Email and password are required"}),
+                400,
+            )
 
         # Validate role
         if role not in ["user", "admin"]:
-            return jsonify({"success": False, "error": "Role must be 'user' or 'admin'"}), 400
+            return (
+                jsonify({"success": False, "error": "Role must be 'user' or 'admin'"}),
+                400,
+            )
 
         result = get_auth_service().create_user(email, password, role)
 
@@ -234,24 +245,28 @@ def delete_user(user_id):
     try:
         # Check if user is admin
         user = g.get("current_user")
-        
+
         if not user:
             return jsonify({"success": False, "error": "No user in context"}), 401
-        
+
         user_role = user.get("role", "").lower() if user.get("role") else ""
-        
+
         if user_role != "admin":
-            return jsonify({
-                "success": False, 
-                "error": "Unauthorized. Admin access required"
-            }), 403
+            return (
+                jsonify(
+                    {"success": False, "error": "Unauthorized. Admin access required"}
+                ),
+                403,
+            )
 
         if not user_id:
             return jsonify({"success": False, "error": "User ID is required"}), 400
 
         if user_id == user.get("id"):
             return (
-                jsonify({"success": False, "error": "You cannot delete your own account"}),
+                jsonify(
+                    {"success": False, "error": "You cannot delete your own account"}
+                ),
                 400,
             )
 
@@ -265,6 +280,7 @@ def delete_user(user_id):
     except Exception as e:
         print(f"EXCEPTION in delete_user: {str(e)}")
         import traceback
+
         traceback.print_exc()
         return (
             jsonify({"success": False, "error": f"Failed to delete user: {str(e)}"}),
