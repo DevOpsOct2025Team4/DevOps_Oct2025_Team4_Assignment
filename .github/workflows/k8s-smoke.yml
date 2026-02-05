@@ -17,14 +17,18 @@ jobs:
 
     env:
       REGISTRY: ghcr.io
-      BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/devops-assignment-backend
-      FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/devops-assignment-frontend
       TAG: ${{ github.sha }}
       NAMESPACE: devops-assignment
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set image names (lowercase)
+        run: |
+          OWNER_LOWER="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          echo "BACKEND_IMAGE=ghcr.io/${OWNER_LOWER}/devops-assignment-backend" >> "$GITHUB_ENV"
+          echo "FRONTEND_IMAGE=ghcr.io/${OWNER_LOWER}/devops-assignment-frontend" >> "$GITHUB_ENV"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
