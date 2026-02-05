@@ -9,6 +9,34 @@ def test_login_missing_fields_returns_400(client):
     assert response.status_code == 400
 
 
+def test_login_no_data_returns_400(client):
+    response = client.post("/api/login")
+    assert response.status_code == 400
+
+
+def test_login_empty_fields_returns_400(client):
+    response = client.post("/api/login", json={"email": "", "password": ""})
+    assert response.status_code == 400
+
+
+def test_login_wrong_credentials_returns_401(client, monkeypatch):
+    class FakeAuthService:
+        @staticmethod
+        def login(_email, _password):
+            return {"success": False, "error": "Invalid credentials"}
+
+    monkeypatch.setattr(
+        "controllers.auth_controller.get_auth_service",
+        lambda: FakeAuthService(),
+    )
+
+    response = client.post(
+        "/api/login",
+        json={"email": "wrong@example.com", "password": "wrong-password"},
+    )
+    assert response.status_code == 401
+
+
 def test_refresh_missing_token_returns_400(client):
     response = client.post("/api/refresh", json={})
     assert response.status_code == 400
