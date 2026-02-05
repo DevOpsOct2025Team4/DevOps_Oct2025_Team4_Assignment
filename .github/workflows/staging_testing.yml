@@ -202,6 +202,64 @@ jobs:
           fi
           alembic upgrade head
 
+  notify_migration_success:
+    name: Notify Migration Success
+    runs-on: ubuntu-latest
+    needs: migrate_staging
+    if: success()
+    steps:
+      - name: Notify Discord (Migration Success)
+        run: |
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK_BACKEND }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "✅ Database Migration Success",
+              "description": "Alembic migration completed successfully on staging for **${{ github.ref_name }}**",
+              "color": 3066993,
+              "fields": [
+                {"name": "Commit", "value": "[${GITHUB_SHA:0:7}]($COMMIT_URL)", "inline": true},
+                {"name": "Author", "value": "${{ github.actor }}", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Workflow", "value": "[View Run]($RUN_URL)", "inline": false}
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
+
+  notify_migration_failure:
+    name: Notify Migration Failure
+    runs-on: ubuntu-latest
+    needs: migrate_staging
+    if: failure()
+    steps:
+      - name: Notify Discord (Migration Failed)
+        run: |
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK_BACKEND }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "🗄️ Database Migration Failed",
+              "description": "Alembic migration failed on staging for **${{ github.ref_name }}**",
+              "color": 15158332,
+              "fields": [
+                {"name": "Commit", "value": "[${GITHUB_SHA:0:7}]($COMMIT_URL)", "inline": true},
+                {"name": "Author", "value": "${{ github.actor }}", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Workflow", "value": "[View Run]($RUN_URL)", "inline": false}
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
+
   migration_smoke:
     name: Post-migration Smoke (Health + DB OK)
     runs-on: ubuntu-latest
@@ -261,6 +319,64 @@ jobs:
           fi
 
           echo "Post-migration smoke passed."
+
+  notify_smoke_success:
+    name: Notify Smoke Test Success
+    runs-on: ubuntu-latest
+    needs: migration_smoke
+    if: success()
+    steps:
+      - name: Notify Discord (Post-Migration Smoke Success)
+        run: |
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK_BACKEND }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "✅ Post-Migration Smoke Test Success",
+              "description": "Post-migration health and DB checks passed on staging for **${{ github.ref_name }}**",
+              "color": 3066993,
+              "fields": [
+                {"name": "Commit", "value": "[${GITHUB_SHA:0:7}]($COMMIT_URL)", "inline": true},
+                {"name": "Author", "value": "${{ github.actor }}", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Workflow", "value": "[View Run]($RUN_URL)", "inline": false}
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
+
+  notify_smoke_failure:
+    name: Notify Smoke Test Failure
+    runs-on: ubuntu-latest
+    needs: migration_smoke
+    if: failure()
+    steps:
+      - name: Notify Discord (Post-Migration Smoke Failed)
+        run: |
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK_BACKEND }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "💨 Post-Migration Smoke Test Failed",
+              "description": "Post-migration health or DB checks failed on staging for **${{ github.ref_name }}**",
+              "color": 15158332,
+              "fields": [
+                {"name": "Commit", "value": "[${GITHUB_SHA:0:7}]($COMMIT_URL)", "inline": true},
+                {"name": "Author", "value": "${{ github.actor }}", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Workflow", "value": "[View Run]($RUN_URL)", "inline": false}
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
 
   deep_security:
     name: Deep Security (SAST)
