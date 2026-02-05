@@ -1,10 +1,11 @@
 from typing import Optional, Tuple
 
+from dotenv import load_dotenv
 from flask import current_app, g, jsonify, request
 
 from services.auth_service import AuthService
 
-
+load_dotenv()
 auth_service = AuthService()
 
 PUBLIC_PATHS = {
@@ -21,6 +22,18 @@ def public_route(fn):
     """
     setattr(fn, "_is_public", True)
     return fn
+
+
+def require_role(role: str):
+    """
+    Restrict a view function to a specific user role.
+    """
+
+    def decorator(fn):
+        setattr(fn, "_required_role", role)
+        return fn
+
+    return decorator
 
 
 def attach_user() -> Optional[Tuple[dict, int]]:
@@ -55,4 +68,9 @@ def attach_user() -> Optional[Tuple[dict, int]]:
     g.current_user = user
     g.user_id = user.get("id")
     g.access_token = access_token
+
+    required_role = view_fn and getattr(view_fn, "_required_role", None)
+    if required_role and user.get("role") != required_role:
+        return jsonify({"success": False, "error": "Forbidden"}), 403
+
     return None

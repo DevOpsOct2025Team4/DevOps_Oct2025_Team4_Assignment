@@ -3,3 +3,10 @@ dist
 .env
 /package-lock.json
 .ruff_cache/
+__pycache__/
+*.pyc
+.pytest_cache/
+robot/results/
+output.xml
+report.html
+log.html
