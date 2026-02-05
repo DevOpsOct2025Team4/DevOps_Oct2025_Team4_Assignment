@@ -18,6 +18,35 @@ jobs:
     with:
       upload_client_artifact: true
 
+  notify_build_failure:
+    name: Notify Build Failure
+    runs-on: ubuntu-latest
+    needs: ci
+    if: failure()
+    steps:
+      - name: Notify Discord (Build Failed)
+        run: |
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK_DEV }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "🔨 Build Failed",
+              "description": "CI build or lint checks failed on **${{ github.ref_name }}**",
+              "color": 15158332,
+              "fields": [
+                {"name": "Commit", "value": "[${GITHUB_SHA:0:7}]($COMMIT_URL)", "inline": true},
+                {"name": "Author", "value": "${{ github.actor }}", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Workflow", "value": "[View Run]($RUN_URL)", "inline": false}
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
+
   staging_deploy:
     name: Staging Deploy (Health + SHA)
     runs-on: ubuntu-latest
