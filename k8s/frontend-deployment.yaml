@@ -21,6 +21,8 @@ spec:
         - name: frontend
           image: devops-assignment-frontend:local
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
           ports:
             - containerPort: 80
           readinessProbe:

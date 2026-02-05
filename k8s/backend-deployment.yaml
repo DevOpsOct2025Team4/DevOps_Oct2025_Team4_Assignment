@@ -32,6 +32,8 @@ spec:
         - name: backend
           image: devops-assignment-backend:local
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
           ports:
             - containerPort: 5000
           envFrom:
