@@ -1,10 +1,11 @@
 from typing import Optional, Tuple
 
+from dotenv import load_dotenv
 from flask import current_app, g, jsonify, request
 
 from services.auth_service import AuthService
 
-
+load_dotenv()
 auth_service = AuthService()
 
 PUBLIC_PATHS = {
