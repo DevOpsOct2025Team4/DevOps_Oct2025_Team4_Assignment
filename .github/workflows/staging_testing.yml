@@ -211,6 +211,35 @@ jobs:
       contents: read
       security-events: write
 
+  notify_security_failure:
+    name: Notify Security Scan Failure
+    runs-on: ubuntu-latest
+    needs: deep_security
+    if: failure()
+    steps:
+      - name: Notify Discord (SAST Failed)
+        run: |
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK_QA }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "🔒 SAST Security Scan Failed",
+              "description": "Deep security scan detected issues on **${{ github.ref_name }}**",
+              "color": 15158332,
+              "fields": [
+                {"name": "Commit", "value": "[${GITHUB_SHA:0:7}]($COMMIT_URL)", "inline": true},
+                {"name": "Author", "value": "${{ github.actor }}", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Workflow", "value": "[View Run]($RUN_URL)", "inline": false}
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
+
   integration_tests:
     name: Staging Validation (Integration/E2E on staging)
     runs-on: ubuntu-latest
@@ -220,6 +249,35 @@ jobs:
         run: |
           echo "TODO: add integration test command(s)"
           echo "Example: run Playwright/Cypress tests against STAGING_URL"
+
+  notify_integration_failure:
+    name: Notify Integration Test Failure
+    runs-on: ubuntu-latest
+    needs: integration_tests
+    if: failure()
+    steps:
+      - name: Notify Discord (Integration Tests Failed)
+        run: |
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK_QA }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "🧪 Integration Tests Failed",
+              "description": "E2E or integration tests failed on staging for **${{ github.ref_name }}**",
+              "color": 15158332,
+              "fields": [
+                {"name": "Commit", "value": "[${GITHUB_SHA:0:7}]($COMMIT_URL)", "inline": true},
+                {"name": "Author", "value": "${{ github.actor }}", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Workflow", "value": "[View Run]($RUN_URL)", "inline": false}
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
 
   dast:
     name: OWASP ZAP (DAST, authenticated)
@@ -236,6 +294,35 @@ jobs:
     secrets:
       zap_username: ${{ secrets.ZAP_USERNAME }}
       zap_password: ${{ secrets.ZAP_PASSWORD }}
+
+  notify_dast_failure:
+    name: Notify DAST Failure
+    runs-on: ubuntu-latest
+    needs: dast
+    if: failure()
+    steps:
+      - name: Notify Discord (DAST Failed)
+        run: |
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK_QA }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "🛡️ DAST Security Scan Failed",
+              "description": "OWASP ZAP detected vulnerabilities on staging for **${{ github.ref_name }}**",
+              "color": 15158332,
+              "fields": [
+                {"name": "Commit", "value": "[${GITHUB_SHA:0:7}]($COMMIT_URL)", "inline": true},
+                {"name": "Author", "value": "${{ github.actor }}", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Workflow", "value": "[View Run]($RUN_URL)", "inline": false}
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
 
   approve_candidate:
     name: Manual Approval
