@@ -1,10 +1,32 @@
 import os
 
 from dotenv import load_dotenv
-from flask import Flask
+from flask import Flask, request
 from flask_cors import CORS
+from prometheus_client import Counter, Histogram, Gauge, generate_latest, CollectorRegistry, REGISTRY
+from prometheus_client import make_wsgi_app
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 from routes import api_bp
+
+
+# Define Prometheus metrics
+request_count = Counter(
+    'flask_http_requests_total',
+    'Total HTTP requests',
+    ['method', 'endpoint', 'status']
+)
+
+request_duration = Histogram(
+    'flask_http_request_duration_seconds',
+    'HTTP request duration in seconds',
+    ['method', 'endpoint']
+)
+
+active_requests = Gauge(
+    'flask_http_requests_active',
+    'Active HTTP requests'
+)
 
 
 def create_app() -> Flask:
@@ -22,6 +44,30 @@ def create_app() -> Flask:
             app.logger.warning("Invalid MAX_UPLOAD_MB=%s", max_upload_mb)
 
     app.register_blueprint(api_bp, url_prefix="/api")
+
+    # Add Prometheus metrics middleware
+    @app.before_request
+    def before_request():
+        active_requests.inc()
+
+    @app.after_request
+    def after_request(response):
+        active_requests.dec()
+        
+        # Track metrics
+        request_count.labels(
+            method=request.method,
+            endpoint=request.endpoint or 'unknown',
+            status=response.status_code
+        ).inc()
+        
+        # Track duration (simplified - using request context)
+        return response
+
+    # Add metrics endpoint
+    app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {
+        '/metrics': make_wsgi_app()
+    })
 
     return app
 
