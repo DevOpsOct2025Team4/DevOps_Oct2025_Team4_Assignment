@@ -1,23 +1,27 @@
 # Observability & Monitoring Guide - Prometheus & Grafana
 
 ## Overview
+
 This guide explains the monitoring and observability implementation using Prometheus for metrics collection and Grafana for visualization.
 
 ## Components
 
 ### 1. **Prometheus**
+
 - **Port**: 9090
 - **Purpose**: Time-series database for collecting and storing metrics
 - **Config**: `prometheus.yml`
 - **Access**: http://localhost:9090
 
 ### 2. **Grafana**
+
 - **Port**: 3000
 - **Purpose**: Visualization and dashboard creation
 - **Default Login**: admin / admin
 - **Access**: http://localhost:3000
 
 ### 3. **Flask Metrics Exporter**
+
 - **Port**: 5000 (same as Flask app)
 - **Metrics Endpoint**: http://localhost:5000/metrics
 - **Metrics Exported**:
@@ -28,16 +32,19 @@ This guide explains the monitoring and observability implementation using Promet
 ## Quick Start
 
 ### 1. Start All Services
+
 ```bash
 docker-compose up -d
 ```
 
 ### 2. Access Prometheus
+
 - Open: http://localhost:9090
 - Check targets: http://localhost:9090/targets
 - Query metrics: http://localhost:9090/graph
 
 ### 3. Access Grafana
+
 - Open: http://localhost:3000
 - Login: admin / admin
 - Change password when prompted
@@ -84,11 +91,13 @@ The pre-configured "Flask App Monitoring" dashboard includes:
 ## Configuration Files
 
 ### prometheus.yml
+
 - Defines scrape intervals (how often to collect metrics)
 - Configures Flask app as a target
 - Default scrape interval: 15 seconds globally, 10 seconds for Flask
 
 ### Grafana Provisioning
+
 - **datasources/prometheus.yml**: Configures Prometheus as data source
 - **dashboards/dashboards.yml**: Enables dashboard provisioning
 - **dashboards/flask-monitoring.json**: Pre-built dashboard definition
@@ -96,7 +105,9 @@ The pre-configured "Flask App Monitoring" dashboard includes:
 ## Monitoring Best Practices
 
 ### 1. **Alert Rules** (Optional Enhancement)
+
 Create `prometheus-alerts.yml` for automated alerting:
+
 ```yaml
 groups:
   - name: flask_alerts
@@ -116,7 +127,9 @@ groups:
 ```
 
 ### 2. **Custom Metrics** (Future Enhancement)
+
 Add custom metrics to track business logic:
+
 ```python
 from prometheus_client import Counter, Gauge
 
@@ -135,6 +148,7 @@ storage_size_gauge = Gauge(
 ```
 
 ### 3. **Retention Policies**
+
 - Prometheus stores data in `/prometheus` volume
 - Default retention: 15 days
 - Modify in docker-compose.yml: `--storage.tsdb.retention.time=30d`
@@ -142,18 +156,21 @@ storage_size_gauge = Gauge(
 ## Troubleshooting
 
 ### Prometheus not scraping Flask app
+
 1. Check Flask app is running: `curl http://localhost:5000/metrics`
 2. Verify `prometheus.yml` target configuration
 3. Check Prometheus logs: `docker logs <prometheus-container>`
 4. Restart: `docker-compose restart prometheus`
 
 ### Grafana not showing data
+
 1. Verify data source: Grafana → Configuration → Data Sources
 2. Test connection to Prometheus
 3. Check dashboard queries in Grafana UI
 4. Ensure Prometheus has collected metrics (wait 30+ seconds)
 
 ### Metrics not appearing
+
 1. Generate traffic: `curl http://localhost:5000/api/health`
 2. Wait for scrape interval (default 10s for Flask)
 3. Check metrics endpoint: `curl http://localhost:5000/metrics`
