@@ -113,6 +113,14 @@ jobs:
           kubectl -n $NAMESPACE rollout status deployment/backend --timeout=300s
           kubectl -n $NAMESPACE rollout status deployment/frontend --timeout=300s
 
+      - name: Debug on failure
+        if: failure()
+        run: |
+          kubectl -n $NAMESPACE get pods -o wide
+          kubectl -n $NAMESPACE describe pod -l tier=backend
+          kubectl -n $NAMESPACE logs deploy/backend --all-containers=true
+          kubectl -n $NAMESPACE get events --sort-by=.lastTimestamp | tail -n 50
+
       - name: Smoke test (health)
         run: |
           kubectl -n $NAMESPACE run k8s-smoke --rm -i --restart=Never \
