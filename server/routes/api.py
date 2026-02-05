@@ -3,7 +3,15 @@ from flask import Blueprint
 from controllers.health_controller import health
 from controllers.hello_controller import hello
 from controllers.upload_controller import upload
-from controllers.auth_controller import login, logout, verify, refresh, get_users, create_user, delete_user
+from controllers.auth_controller import (
+    login,
+    logout,
+    verify,
+    refresh,
+    get_users,
+    create_user,
+    delete_user,
+)
 from controllers.file_controller import get_user_files, download_file, delete_file
 from middleware.auth import attach_user
 

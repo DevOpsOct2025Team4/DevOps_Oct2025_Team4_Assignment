@@ -104,16 +104,13 @@ export default function AdminDashboard() {
 
   const handleDeleteUser = async () => {
     if (!deleteConfirm) return;
-    
+
     setDeleting(true);
 
     try {
-      const { response, data } = await apiRequest(
-        `users/${deleteConfirm.id}`,
-        {
-          method: "DELETE",
-        }
-      );
+      const { response, data } = await apiRequest(`users/${deleteConfirm.id}`, {
+        method: "DELETE",
+      });
 
       if (response?.status === 401) {
         setError("Session expired. Please log in again.");
@@ -208,7 +205,10 @@ export default function AdminDashboard() {
                   type="email"
                   value={createFormData.email}
                   onChange={(e) =>
-                    setCreateFormData({ ...createFormData, email: e.target.value })
+                    setCreateFormData({
+                      ...createFormData,
+                      email: e.target.value,
+                    })
                   }
                   required
                   className="w-full rounded-[5px] border border-gray-300 px-4 py-2"
@@ -224,7 +224,10 @@ export default function AdminDashboard() {
                   type="password"
                   value={createFormData.password}
                   onChange={(e) =>
-                    setCreateFormData({ ...createFormData, password: e.target.value })
+                    setCreateFormData({
+                      ...createFormData,
+                      password: e.target.value,
+                    })
                   }
                   required
                   minLength={6}
@@ -234,11 +237,16 @@ export default function AdminDashboard() {
               </div>
 
               <div className="mb-4">
-                <label className="mb-2 block text-sm font-semibold">Role *</label>
+                <label className="mb-2 block text-sm font-semibold">
+                  Role *
+                </label>
                 <select
                   value={createFormData.role}
                   onChange={(e) =>
-                    setCreateFormData({ ...createFormData, role: e.target.value })
+                    setCreateFormData({
+                      ...createFormData,
+                      role: e.target.value,
+                    })
                   }
                   className="w-full rounded-[5px] border border-gray-300 px-4 py-2"
                 >
@@ -264,7 +272,9 @@ export default function AdminDashboard() {
           )}
 
           {loading ? (
-            <div className="py-8 text-center text-gray-500">Loading users...</div>
+            <div className="py-8 text-center text-gray-500">
+              Loading users...
+            </div>
           ) : users.length === 0 ? (
             <div className="py-8 text-center text-gray-500">
               No registered users found.
@@ -276,9 +286,15 @@ export default function AdminDashboard() {
                   <tr className="border-b border-gray-200 bg-gray-50">
                     <th className="px-4 py-3 text-left font-semibold">Email</th>
                     <th className="px-4 py-3 text-left font-semibold">Role</th>
-                    <th className="px-4 py-3 text-left font-semibold">User ID</th>
-                    <th className="px-4 py-3 text-left font-semibold">Created At</th>
-                    <th className="px-4 py-3 text-center font-semibold">Actions</th>
+                    <th className="px-4 py-3 text-left font-semibold">
+                      User ID
+                    </th>
+                    <th className="px-4 py-3 text-left font-semibold">
+                      Created At
+                    </th>
+                    <th className="px-4 py-3 text-center font-semibold">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -343,8 +359,9 @@ export default function AdminDashboard() {
             <div className="rounded-[10px] bg-white p-6 shadow-lg">
               <h3 className="mb-4 text-lg font-bold">Confirm Delete</h3>
               <p className="mb-6 text-gray-600">
-                Are you sure you want to delete user <strong>{deleteConfirm.email}</strong>?
-                This action cannot be undone.
+                Are you sure you want to delete user{" "}
+                <strong>{deleteConfirm.email}</strong>? This action cannot be
+                undone.
               </p>
               <div className="flex gap-4">
                 <button

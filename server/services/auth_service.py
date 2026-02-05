@@ -36,7 +36,7 @@ class AuthService:
                 # Get role from user metadata
                 user_meta = response.user.user_metadata or {}
                 role = user_meta.get("role", "user")
-                
+
                 return {
                     "success": True,
                     "user": {
@@ -77,7 +77,7 @@ class AuthService:
                 # Try to get role from user_metadata, with fallback to raw_user_meta_data
                 user_meta = response.user.user_metadata or {}
                 role = user_meta.get("role", "user")
-                
+
                 return {
                     "id": response.user.id,
                     "email": response.user.email,
@@ -127,12 +127,22 @@ class AuthService:
             if users_list:
                 users = []
                 for user in users_list:
-                    users.append({
-                        "id": user.id,
-                        "email": user.email,
-                        "role": user.user_metadata.get("role", "user") if user.user_metadata else "user",
-                        "created_at": user.created_at.isoformat() if hasattr(user, "created_at") else None,
-                    })
+                    users.append(
+                        {
+                            "id": user.id,
+                            "email": user.email,
+                            "role": (
+                                user.user_metadata.get("role", "user")
+                                if user.user_metadata
+                                else "user"
+                            ),
+                            "created_at": (
+                                user.created_at.isoformat()
+                                if hasattr(user, "created_at")
+                                else None
+                            ),
+                        }
+                    )
                 return {
                     "success": True,
                     "users": users,
@@ -142,7 +152,9 @@ class AuthService:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def create_user(self, email: str, password: str, role: str = "user") -> Dict[str, Any]:
+    def create_user(
+        self, email: str, password: str, role: str = "user"
+    ) -> Dict[str, Any]:
         """
         Create a new user account in Supabase
         Args:
@@ -155,14 +167,14 @@ class AuthService:
         try:
             # Create user with Supabase admin API
             admin_client = self._admin_client()
-            response = admin_client.auth.admin.create_user({
-                "email": email,
-                "password": password,
-                "email_confirm": True,
-                "user_metadata": {
-                    "role": role
+            response = admin_client.auth.admin.create_user(
+                {
+                    "email": email,
+                    "password": password,
+                    "email_confirm": True,
+                    "user_metadata": {"role": role},
                 }
-            })
+            )
 
             if response.user:
                 return {
@@ -172,7 +184,7 @@ class AuthService:
                         "email": response.user.email,
                         "role": role,
                     },
-                    "message": "User created successfully"
+                    "message": "User created successfully",
                 }
             else:
                 return {"success": False, "error": "Failed to create user"}
@@ -190,9 +202,6 @@ class AuthService:
         try:
             admin_client = self._admin_client()
             admin_client.auth.admin.delete_user(user_id)
-            return {
-                "success": True,
-                "message": "User deleted successfully"
-            }
+            return {"success": True, "message": "User deleted successfully"}
         except Exception as e:
             return {"success": False, "error": str(e)}
