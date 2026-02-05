@@ -44,4 +44,4 @@ if (-not $env:ROBOT_USERNAME -or -not $env:ROBOT_PASSWORD) {
   Write-Host "ROBOT_USERNAME/ROBOT_PASSWORD not set - login test will be skipped."
 }
 
-robot -d robot/results robot/tests/frontend_smoke.robot
+robot -d robot/results robot/tests

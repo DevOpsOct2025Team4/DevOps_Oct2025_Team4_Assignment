@@ -22,7 +22,7 @@ def login():
     Returns: { "success": true, "user": {...}, "session": {...} }
     """
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True)
 
         if not data:
             return jsonify({"success": False, "error": "No data provided"}), 400

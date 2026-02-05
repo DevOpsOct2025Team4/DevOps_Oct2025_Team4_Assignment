@@ -415,14 +415,67 @@ jobs:
           EOF
 
   integration_tests:
-    name: Staging Validation (Integration/E2E on staging)
+    name: Staging Validation (Pytest + Robot on staging)
     runs-on: ubuntu-latest
     needs: migration_smoke
+    environment:
+      name: staging
+    env:
+      STAGING_WEBSITE_URL: ${{ vars.STAGING_WEBSITE_URL }}
+      ROBOT_BASE_URL: ${{ vars.STAGING_WEBSITE_URL }}
+      ROBOT_USERNAME: ${{ secrets.ROBOT_USERNAME }}
+      ROBOT_PASSWORD: ${{ secrets.ROBOT_PASSWORD }}
+      ROBOT_ADMIN_USERNAME: ${{ secrets.ROBOT_ADMIN_USERNAME }}
+      ROBOT_ADMIN_PASSWORD: ${{ secrets.ROBOT_ADMIN_PASSWORD }}
+      ROBOT_BROWSER: headlesschrome
     steps:
-      - name: Placeholder
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
         run: |
-          echo "TODO: add integration test command(s)"
-          echo "Example: run Playwright/Cypress tests against STAGING_URL"
+          python -m pip install --upgrade pip
+          python -m pip install -r server/requirements.txt
+          python -m pip install -r server/requirements-dev.txt
+          python -m pip install robotframework robotframework-seleniumlibrary
+
+      - name: Run pytest
+        run: |
+          python -m pytest server/tests
+
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Validate Robot env
+        run: |
+          if [ -z "${ROBOT_BASE_URL:-}" ]; then
+            echo "STAGING_WEBSITE_URL is not set (configure it in the 'staging' environment)."
+            exit 1
+          fi
+          if [ -z "${ROBOT_ADMIN_USERNAME:-}" ] || [ -z "${ROBOT_ADMIN_PASSWORD:-}" ]; then
+            echo "ROBOT_ADMIN_USERNAME/ROBOT_ADMIN_PASSWORD are not set."
+            exit 1
+          fi
+          if [ -z "${ROBOT_USERNAME:-}" ] || [ -z "${ROBOT_PASSWORD:-}" ]; then
+            echo "ROBOT_USERNAME/ROBOT_PASSWORD are not set."
+            exit 1
+          fi
+
+      - name: Run Robot tests
+        run: |
+          python -m robot -d robot/results robot/tests
+
+      - name: Upload Robot results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: robot-results-staging
+          path: robot/results
 
   notify_integration_failure:
     name: Notify Integration Test Failure
