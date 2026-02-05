@@ -505,6 +505,28 @@ jobs:
     environment:
       name: review
     steps:
+      - name: Notify Discord (Waiting for Approval)
+        run: |
+          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "embeds": [{
+              "title": "🔔 Staging Ready for Approval",
+              "description": "All checks passed. Release candidate is **waiting for manual approval**",
+              "color": 16776960,
+              "fields": [
+                {"name": "Commit", "value": "[${GITHUB_SHA:0:7}]($COMMIT_URL)", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Workflow", "value": "[Review & Approve]($RUN_URL)", "inline": false}
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
+
       - name: Approval checkpoint
         run: echo "Staging approved."
 
