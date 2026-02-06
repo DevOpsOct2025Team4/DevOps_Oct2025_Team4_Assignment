@@ -1,6 +1,7 @@
 import uuid
 
 import requests
+from supabase import create_client
 from werkzeug.utils import secure_filename
 
 
@@ -38,3 +39,10 @@ def upload_file_to_supabase(
         payload["url"] = f"{base_url}/storage/v1/object/public/{bucket}/{object_name}"
 
     return payload
+
+
+def create_signed_url(
+    supabase_url: str, service_key: str, bucket: str, file_path: str, expires: int = 60
+):
+    client = create_client(supabase_url, service_key)
+    return client.storage.from_(bucket).create_signed_url(file_path, expires)

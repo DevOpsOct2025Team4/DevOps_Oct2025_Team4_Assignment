@@ -1,23 +1,20 @@
-from unittest.mock import MagicMock
+import pytest
 
+from db.models import FileRecord
+from db.session import get_session
 from services.file_service import FileService
 
 
-def make_service_with_mock(supabase_mock: MagicMock) -> FileService:
-    service = FileService()
-    service.supabase = supabase_mock
-    return service
+@pytest.fixture(autouse=True)
+def clean_files():
+    session = get_session()
+    session.execute(FileRecord.__table__.delete())
+    session.commit()
+    session.close()
 
 
 def test_save_file_record_success():
-    supabase = MagicMock()
-    execute_mock = MagicMock()
-    execute_mock.data = [{"id": "file-1"}]
-    (supabase.table.return_value.insert.return_value.execute).return_value = (
-        execute_mock
-    )
-
-    service = make_service_with_mock(supabase)
+    service = FileService()
     result = service.save_file_record(
         user_id="user-1",
         filename="stored.txt",
@@ -29,75 +26,92 @@ def test_save_file_record_success():
     )
 
     assert result["success"] is True
-    assert result["file"]["id"] == "file-1"
+    assert result["file"]["user_id"] == "user-1"
+    assert result["file"]["filename"] == "stored.txt"
 
 
 def test_get_user_files_returns_list():
-    supabase = MagicMock()
-    execute_mock = MagicMock()
-    execute_mock.data = [{"id": "file-1"}]
-    (
-        supabase.table.return_value.select.return_value.eq.return_value.order.return_value.execute
-    ).return_value = execute_mock
+    session = get_session()
+    record = FileRecord(
+        user_id="user-1",
+        filename="stored.txt",
+        original_filename="original.txt",
+        file_path="uploads/stored.txt",
+        file_size=123,
+        mime_type="text/plain",
+        bucket="uploads",
+    )
+    session.add(record)
+    session.commit()
+    session.close()
 
-    service = make_service_with_mock(supabase)
+    service = FileService()
     files = service.get_user_files("user-1")
 
-    assert files == [{"id": "file-1"}]
+    assert len(files) == 1
+    assert files[0]["filename"] == "stored.txt"
 
 
-def test_get_user_files_on_exception_returns_empty():
-    supabase = MagicMock()
-    supabase.table.side_effect = Exception("boom")
+def test_get_user_files_on_exception_returns_empty(monkeypatch):
+    service = FileService()
 
-    service = make_service_with_mock(supabase)
+    def _boom():
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr("services.file_service.get_session", _boom)
     files = service.get_user_files("user-1")
 
     assert files == []
 
 
 def test_get_file_info_success():
-    supabase = MagicMock()
-    execute_mock = MagicMock()
-    execute_mock.data = [{"id": "file-1"}]
-    select_mock = supabase.table.return_value.select.return_value
-    first_eq = select_mock.eq.return_value
-    second_eq = first_eq.eq.return_value
-    second_eq.execute.return_value = execute_mock
+    session = get_session()
+    record = FileRecord(
+        user_id="user-1",
+        filename="stored.txt",
+        original_filename="original.txt",
+        file_path="uploads/stored.txt",
+        file_size=123,
+        mime_type="text/plain",
+        bucket="uploads",
+    )
+    session.add(record)
+    session.commit()
+    session.refresh(record)
+    session.close()
 
-    service = make_service_with_mock(supabase)
-    result = service.get_file_info("file-1", "user-1")
+    service = FileService()
+    result = service.get_file_info(record.id, "user-1")
 
     assert result["success"] is True
-    assert result["file"]["id"] == "file-1"
-    select_mock.eq.assert_called_with("id", "file-1")
-    first_eq.eq.assert_called_with("user_id", "user-1")
+    assert result["file"]["id"] == record.id
 
 
 def test_get_file_info_not_found():
-    supabase = MagicMock()
-    execute_mock = MagicMock()
-    execute_mock.data = []
-    (
-        supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute
-    ).return_value = execute_mock
-
-    service = make_service_with_mock(supabase)
-    result = service.get_file_info("file-1", "user-1")
+    service = FileService()
+    result = service.get_file_info("missing-id", "user-1")
 
     assert result["success"] is False
 
 
 def test_delete_file_record_returns_deleted_flag():
-    supabase = MagicMock()
-    execute_mock = MagicMock()
-    execute_mock.data = [{"id": "file-1"}]
-    (
-        supabase.table.return_value.delete.return_value.eq.return_value.eq.return_value.execute
-    ).return_value = execute_mock
+    session = get_session()
+    record = FileRecord(
+        user_id="user-1",
+        filename="stored.txt",
+        original_filename="original.txt",
+        file_path="uploads/stored.txt",
+        file_size=123,
+        mime_type="text/plain",
+        bucket="uploads",
+    )
+    session.add(record)
+    session.commit()
+    session.refresh(record)
+    session.close()
 
-    service = make_service_with_mock(supabase)
-    result = service.delete_file_record("file-1", "user-1")
+    service = FileService()
+    result = service.delete_file_record(record.id, "user-1")
 
     assert result["success"] is True
     assert result["deleted"] is True
