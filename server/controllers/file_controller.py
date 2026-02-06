@@ -1,5 +1,8 @@
+import os
+
 from flask import g, jsonify
 from services.file_service import FileService
+from services.supabase_storage import create_signed_url
 
 
 file_service = FileService()
@@ -53,11 +56,34 @@ def download_file(file_id):
         file_path = file_info["file_path"]
         bucket = file_info["bucket"]
 
-        # Generate signed URL for download
-        supabase = file_service.supabase
-        signed_url = supabase.storage.from_(bucket).create_signed_url(
-            file_path, 60
-        )  # 60 seconds expiry
+        supabase_url = os.getenv("SUPABASE_URL", "").strip()
+        service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+        if not supabase_url or not service_key:
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": "Supabase configuration missing",
+                        "missing": [
+                            name
+                            for name, value in (
+                                ("SUPABASE_URL", supabase_url),
+                                ("SUPABASE_SERVICE_ROLE_KEY", service_key),
+                            )
+                            if not value
+                        ],
+                    }
+                ),
+                500,
+            )
+
+        signed_url = create_signed_url(
+            supabase_url=supabase_url,
+            service_key=service_key,
+            bucket=bucket,
+            file_path=file_path,
+            expires=60,
+        )
 
         return (
             jsonify(

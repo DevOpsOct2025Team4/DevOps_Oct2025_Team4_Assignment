@@ -38,7 +38,11 @@ class FakeAuthService:
         if not user or user["password"] != password:
             return {"success": False, "error": "Invalid credentials"}
         session = self._issue_session(user)
-        return {"success": True, "user": {k: user[k] for k in ("id", "email", "role")}, "session": session}
+        return {
+            "success": True,
+            "user": {k: user[k] for k in ("id", "email", "role")},
+            "session": session,
+        }
 
     def logout(self, _access_token, _refresh_token):
         return {"success": True}
@@ -120,7 +124,9 @@ def _patch_services(monkeypatch):
     auth_service = FakeAuthService()
     file_service = FakeFileService()
 
-    monkeypatch.setattr("controllers.auth_controller.get_auth_service", lambda: auth_service)
+    monkeypatch.setattr(
+        "controllers.auth_controller.get_auth_service", lambda: auth_service
+    )
     monkeypatch.setattr("controllers.auth_controller.auth_service", auth_service)
     monkeypatch.setattr("middleware.auth.auth_service", auth_service)
     monkeypatch.setattr("controllers.upload_controller.file_service", file_service)

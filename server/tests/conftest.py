@@ -1,14 +1,18 @@
 import os
 import sys
+import tempfile
 from pathlib import Path
 import types
 import pytest
 from pytest_bdd import given, then
+from sqlalchemy import create_engine
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
+from db import Base  # noqa: E402
 
 # Provide a lightweight supabase stub for unit tests (avoid real dependency).
 if "supabase" not in sys.modules:
@@ -26,6 +30,13 @@ if "supabase" not in sys.modules:
 
 os.environ.setdefault("SUPABASE_URL", "https://example.supabase.co")
 os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "test-service-key")
+_db_path = Path(tempfile.gettempdir()) / "devops_assignment_test.db"
+os.environ.setdefault("DATABASE_URL", f"sqlite:///{_db_path.as_posix()}")
+
+_db_url = os.environ.get("DATABASE_URL", "")
+_connect_args = {"check_same_thread": False} if _db_url.startswith("sqlite") else {}
+_engine = create_engine(_db_url, connect_args=_connect_args)
+Base.metadata.create_all(_engine)
 
 
 @pytest.fixture
