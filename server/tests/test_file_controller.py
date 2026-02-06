@@ -47,22 +47,9 @@ def test_download_external_failure_returns_500(client, monkeypatch):
         },
     )
 
-    class StorageBucket:
-        @staticmethod
-        def create_signed_url(_path, _expires):
-            raise RuntimeError("storage down")
-
-    class Storage:
-        @staticmethod
-        def from_(_bucket):
-            return StorageBucket()
-
-    class SupabaseClient:
-        storage = Storage()
-
     monkeypatch.setattr(
-        "controllers.file_controller.file_service.supabase",
-        SupabaseClient(),
+        "controllers.file_controller.create_signed_url",
+        lambda **_: (_ for _ in ()).throw(RuntimeError("storage down")),
     )
 
     response = client.get("/api/files/file-1/download", headers=headers)

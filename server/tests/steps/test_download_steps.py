@@ -17,22 +17,9 @@ def file_exists(monkeypatch):
         lambda _file_id, _user_id: {"success": True, "file": file_info},
     )
 
-    class StorageBucket:
-        @staticmethod
-        def create_signed_url(_path, _expires):
-            return {"signedURL": "https://example.com/file-1.txt"}
-
-    class Storage:
-        @staticmethod
-        def from_(_bucket):
-            return StorageBucket()
-
-    class SupabaseClient:
-        storage = Storage()
-
     monkeypatch.setattr(
-        "controllers.file_controller.file_service.supabase",
-        SupabaseClient(),
+        "controllers.file_controller.create_signed_url",
+        lambda **_: {"signedURL": "https://example.com/file-1.txt"},
     )
     return "file-1"
 
