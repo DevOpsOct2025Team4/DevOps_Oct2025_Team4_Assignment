@@ -3,24 +3,64 @@ name: Main Guard
 on:
   pull_request:
     branches: [main]
+  workflow_call:
+    inputs:
+      pr_number:
+        required: false
+        type: string
+      head_ref:
+        required: false
+        type: string
+      base_ref:
+        required: false
+        type: string
+
+permissions:
+  pull-requests: read
 
 jobs:
   only_develop:
     name: only_develop
     runs-on: ubuntu-latest
-    env:
-      BASE_REF: ${{ github.base_ref }}
-      HEAD_REF: ${{ github.head_ref }}
     steps:
       - name: Allow only develop -> main PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          INPUT_BASE_REF: ${{ inputs.base_ref }}
+          INPUT_HEAD_REF: ${{ inputs.head_ref }}
         run: |
           set -euo pipefail
-          echo "Base: $BASE_REF"
-          echo "Head: $HEAD_REF"
+          BASE_REF="$INPUT_BASE_REF"
+          HEAD_REF="$INPUT_HEAD_REF"
 
-          if [ "$HEAD_REF" != "develop" ]; then
-            echo "❌ Only 'develop' is allowed to merge into 'main'."
+          if [ -n "$PR_NUMBER" ]; then
+            if ! command -v gh >/dev/null 2>&1; then
+              echo "GitHub CLI (gh) is required when PR_NUMBER is set." >&2
+              exit 1
+            fi
+            BASE_REF=$(gh pr view "$PR_NUMBER" --json baseRefName --jq .baseRefName)
+            HEAD_REF=$(gh pr view "$PR_NUMBER" --json headRefName --jq .headRefName)
+          else
+            if [ -z "$BASE_REF" ]; then
+              BASE_REF="${GITHUB_BASE_REF:-}"
+            fi
+            if [ -z "$HEAD_REF" ]; then
+              HEAD_REF="${GITHUB_HEAD_REF:-}"
+            fi
+          fi
+
+          if [ -z "$HEAD_REF" ]; then
+            echo "HEAD_REF is not set and could not be determined." >&2
             exit 1
           fi
 
-          echo "✅ This PR is from develop."
+          echo "Base: ${BASE_REF:-<unknown>}"
+          echo "Head: $HEAD_REF"
+
+          if [ "$HEAD_REF" != "develop" ] || [ "$BASE_REF" != "main" ]; then
+            echo "Only 'develop' is allowed to merge into 'main'."
+            exit 1
+          fi
+
+          echo "This PR is from develop."
