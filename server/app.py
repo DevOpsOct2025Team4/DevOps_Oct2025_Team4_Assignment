@@ -52,11 +52,12 @@ def create_app() -> Flask:
         # Add security headers
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            "script-src 'self'; "
             "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: https:; "
+            "img-src 'self' data: https://nysjncyfnxrnspxczuvv.supabase.co; "
             "font-src 'self' data:; "
-            "connect-src 'self' https:; "
+            "connect-src 'self' https://nysjncyfnxrnspxczuvv.supabase.co; "
+            "form-action 'self'; "
             "frame-ancestors 'none';"
         )
         response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
