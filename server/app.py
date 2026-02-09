@@ -53,7 +53,7 @@ def create_app() -> Flask:
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             "script-src 'self'; "
-            "style-src 'self' 'unsafe-inline'; "
+            "style-src 'self'; "
             "img-src 'self' data: https://nysjncyfnxrnspxczuvv.supabase.co; "
             "font-src 'self' data:; "
             "connect-src 'self' https://nysjncyfnxrnspxczuvv.supabase.co; "
@@ -63,6 +63,10 @@ def create_app() -> Flask:
         response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
         response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
         response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
+        response.headers["Permissions-Policy"] = (
+            "accelerometer=(), camera=(), geolocation=(), gyroscope=(), "
+            "magnetometer=(), microphone=(), payment=(), usb=()"
+        )
 
         # Track metrics
         request_count.labels(
