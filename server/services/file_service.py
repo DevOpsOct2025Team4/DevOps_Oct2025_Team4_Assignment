@@ -71,16 +71,14 @@ class FileService:
 
     def get_file_info(self, file_id: str, user_id: str) -> Dict[str, Any]:
         """
-        Get file info for download (only if owned by user)
+        Get file info for download.
         """
         try:
             session = get_session()
         except Exception as exc:
             return {"success": False, "error": str(exc)}
         try:
-            stmt = select(FileRecord).where(
-                FileRecord.id == file_id, FileRecord.user_id == user_id
-            )
+            stmt = select(FileRecord).where(FileRecord.id == file_id)
             record = session.scalars(stmt).first()
             if record:
                 return {"success": True, "file": record.to_dict()}

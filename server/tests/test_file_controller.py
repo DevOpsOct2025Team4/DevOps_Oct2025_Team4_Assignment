@@ -1,5 +1,7 @@
 from io import BytesIO
 
+from db.models import FileRecord
+from db.session import get_session
 from services.supabase_storage import UploadError
 
 
@@ -59,13 +61,25 @@ def test_download_external_failure_returns_500(client, monkeypatch):
 def test_user_cannot_access_another_users_file(client, monkeypatch):
     headers = _auth_header(monkeypatch)
 
+    session = get_session()
+    record = FileRecord(
+        user_id="other-user",
+        filename="stored.txt",
+        original_filename="stored.txt",
+        file_path="uploads/stored.txt",
+        file_size=123,
+        mime_type="text/plain",
+        bucket="uploads",
+    )
+    session.add(record)
+    session.commit()
+    session.refresh(record)
+    session.close()
+
     monkeypatch.setattr(
-        "controllers.file_controller.file_service.get_file_info",
-        lambda _file_id, _user_id: {
-            "success": False,
-            "error": "File not found or access denied",
-        },
+        "controllers.file_controller.create_signed_url",
+        lambda **_: {"signedURL": "https://example.com/download"},
     )
 
-    response = client.get("/api/files/file-99/download", headers=headers)
+    response = client.get(f"/api/files/{record.id}/download", headers=headers)
     assert response.status_code == 404
