@@ -55,6 +55,7 @@ docker-compose up -d
 ### Core Metrics to Monitor (Team Requirements)
 
 #### 1. **API Requests** - Monitor incoming traffic volume
+
 ```promql
 # Request rate (requests per second over last 5 minutes)
 rate(flask_http_requests_total[5m])
@@ -76,6 +77,7 @@ flask_http_requests_active
 ```
 
 #### 2. **Request Latency** - Monitor response times
+
 ```promql
 # Average request latency (last 5 minutes)
 rate(flask_http_request_duration_seconds_sum[5m]) / rate(flask_http_request_duration_seconds_count[5m])
@@ -94,6 +96,7 @@ histogram_quantile(0.95, sum(rate(flask_http_request_duration_seconds_bucket[5m]
 ```
 
 #### 3. **Failure Rate** - Monitor error responses
+
 ```promql
 # Overall failure rate (all errors: 4xx + 5xx)
 sum(rate(flask_http_requests_total{status=~"[45].."}[5m])) / sum(rate(flask_http_requests_total[5m]))
@@ -137,22 +140,24 @@ The pre-configured "Flask App Monitoring" dashboard includes:
 ### Additional Panels to Add
 
 #### API Requests Monitoring
+
 - **Panel 1**: Request Rate Graph
   - Query: `rate(flask_http_requests_total[5m])`
   - Type: Graph/Timeline
   - Shows: Requests per second over time
-  
+
 - **Panel 2**: Request Count by Endpoint Table
   - Query: `sum(flask_http_requests_total) by (endpoint)`
   - Type: Table
   - Shows: Total requests per endpoint
-  
+
 - **Panel 3**: Active Requests Gauge
   - Query: `flask_http_requests_active`
   - Type: Gauge
   - Alerts: Warn if > 50, Critical if > 100
 
 #### Request Latency Monitoring
+
 - **Panel 4**: Latency Percentiles Graph
   - Queries:
     - P50: `histogram_quantile(0.5, rate(flask_http_request_duration_seconds_bucket[5m]))`
@@ -160,7 +165,7 @@ The pre-configured "Flask App Monitoring" dashboard includes:
     - P99: `histogram_quantile(0.99, rate(flask_http_request_duration_seconds_bucket[5m]))`
   - Type: Graph/Timeline
   - Shows: Latency distribution over time
-  
+
 - **Panel 5**: Average Latency Gauge
   - Query: `rate(flask_http_request_duration_seconds_sum[5m]) / rate(flask_http_request_duration_seconds_count[5m])`
   - Type: Stat/Gauge
@@ -168,18 +173,19 @@ The pre-configured "Flask App Monitoring" dashboard includes:
   - Alerts: Warn if > 0.5s, Critical if > 1s
 
 #### Failure Rate Monitoring
+
 - **Panel 6**: Overall Error Rate Graph
   - Query: `sum(rate(flask_http_requests_total{status=~"[45].."}[5m])) / sum(rate(flask_http_requests_total[5m]))`
   - Type: Graph/Timeline
   - Alert Threshold: 5% = Warning, 10% = Critical
-  
+
 - **Panel 7**: Error Rate Breakdown
   - Queries:
     - 4xx: `rate(flask_http_requests_total{status=~"4.."}[5m])`
     - 5xx: `rate(flask_http_requests_total{status=~"5.."}[5m])`
   - Type: Graph with legend
   - Shows: Client vs Server errors side by side
-  
+
 - **Panel 8**: Errors by Status Code Table
   - Query: `sum(flask_http_requests_total{status=~"[45]."}) by (status)`
   - Type: Table
