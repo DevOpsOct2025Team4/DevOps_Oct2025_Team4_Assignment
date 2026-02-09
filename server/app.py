@@ -59,6 +59,9 @@ def create_app() -> Flask:
             "connect-src 'self' https:; "
             "frame-ancestors 'none';"
         )
+        response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
 
         # Track metrics
         request_count.labels(
