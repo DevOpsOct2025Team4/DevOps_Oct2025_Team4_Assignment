@@ -52,7 +52,7 @@ def create_app() -> Flask:
         # Add security headers
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline'; "
+            "script-src 'self'; "
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: https://nysjncyfnxrnspxczuvv.supabase.co; "
             "font-src 'self' data:; "
