@@ -57,6 +57,7 @@ def create_app() -> Flask:
             "img-src 'self' data: https:; "
             "font-src 'self' data:; "
             "connect-src 'self' https:; "
+            "form-action 'self'; "
             "frame-ancestors 'none';"
         )
         response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
