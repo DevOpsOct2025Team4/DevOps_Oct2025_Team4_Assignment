@@ -21,7 +21,7 @@
     "lint:server": "python -m ruff check server",
     "check": "pnpm lint && python -m pre_commit run --all-files",
     "robot": "powershell -ExecutionPolicy Bypass -File robot\\run-robot.ps1",
-    "test:backend": "python -m pytest -q server",
+    "test:backend": "python -m pytest -q server --cov=server --cov-report=term-missing --cov-report=xml --cov-config server/.coveragerc",
     "test:robot": "pnpm robot",
     "test": "pnpm test:backend && pnpm test:robot",
     "create-local-db": "docker compose up -d db",

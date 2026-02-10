@@ -2,3 +2,4 @@ ruff
 pip-audit
 pytest
 pytest-bdd
+pytest-cov
