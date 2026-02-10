@@ -82,5 +82,5 @@ jobs:
         run: ruff check server
 
       - name: Server - Tests (pytest)
-        run: pytest -q
+        run: pytest -q --cov=. --cov-report=term-missing --cov-report=xml
         working-directory: server
