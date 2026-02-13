@@ -24,6 +24,8 @@ jobs:
       ROBOT_PASSWORD: ${{ secrets.ROBOT_PASSWORD }}
       ROBOT_ADMIN_USERNAME: ${{ secrets.ROBOT_ADMIN_USERNAME }}
       ROBOT_ADMIN_PASSWORD: ${{ secrets.ROBOT_ADMIN_PASSWORD }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,6 +53,24 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r server/requirements.txt
           python -m pip install robotframework robotframework-seleniumlibrary
+
+      - name: Create server .env for compose
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+            echo "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for robot UI tests."
+            exit 1
+          fi
+          cat > server/.env <<EOF
+          PORT=5000
+          ENV=dev
+          HOST=0.0.0.0
+          SUPABASE_URL=${SUPABASE_URL}
+          SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+          SUPABASE_BUCKET=UserUploads
+          SUPABASE_STORAGE_PUBLIC=true
+          MAX_UPLOAD_MB=10
+          EOF
 
       - name: Start DB and backend (Docker)
         run: |
