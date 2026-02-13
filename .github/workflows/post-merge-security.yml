@@ -35,6 +35,81 @@ jobs:
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
+        with:
+          output: sarif-results
+          upload: true
+
+      - name: Fail on CodeQL findings
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import glob, json, sys
+          def sev_score(val):
+            if val is None:
+              return None
+            if isinstance(val, (int, float)):
+              return float(val)
+            if isinstance(val, str):
+              s = val.strip().lower()
+              if s in ("critical",):
+                return 9.0
+              if s in ("high",):
+                return 7.0
+              if s in ("medium", "moderate"):
+                return 4.0
+              if s in ("low", "info", "informational", "note"):
+                return 0.0
+              try:
+                return float(s)
+              except ValueError:
+                return None
+            if isinstance(val, dict):
+              for k in ("score", "cvss", "cvss_v3", "cvss_v2", "value"):
+                if k in val:
+                  score = sev_score(val.get(k))
+                  if score is not None:
+                    return score
+              return None
+            if isinstance(val, list):
+              scores = [sev_score(v) for v in val]
+              scores = [s for s in scores if s is not None]
+              return max(scores, default=None)
+            return None
+
+          def is_high(result, rule):
+            for source in (result.get("properties") or {}, rule.get("properties") or {}):
+              for key in ("security-severity", "securitySeverity", "security_severity", "severity"):
+                score = sev_score(source.get(key))
+                if score is not None:
+                  return score >= 7.0
+            level = (result.get("level") or rule.get("defaultConfiguration", {}).get("level") or "").lower()
+            if level in ("critical", "high", "error"):
+              return True
+            return False
+
+          files = glob.glob("sarif-results/**/*.sarif", recursive=True)
+          if not files:
+            files = glob.glob("**/*.sarif", recursive=True)
+          if not files:
+            print("No CodeQL SARIF files found")
+            sys.exit(1)
+          total = 0
+          high = 0
+          for path in files:
+            with open(path, "r", encoding="utf-8") as fh:
+              data = json.load(fh)
+            for run in data.get("runs", []) or []:
+              rules = {r.get("id"): r for r in (run.get("tool", {}).get("driver", {}).get("rules", []) or []) if r.get("id")}
+              for result in run.get("results", []) or []:
+                total += 1
+                rule = rules.get(result.get("ruleId"), {})
+                if is_high(result, rule):
+                  high += 1
+          print(f"CodeQL SARIF findings: total={total} high_or_critical={high}")
+          if high > 0:
+            sys.exit(1)
+          PY
 
   # ------------------- SAST via Semgrep -------------------
   semgrep:
@@ -58,3 +133,76 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: semgrep.sarif
+
+      - name: Fail on Semgrep findings
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, sys
+          def sev_score(val):
+            if val is None:
+              return None
+            if isinstance(val, (int, float)):
+              return float(val)
+            if isinstance(val, str):
+              s = val.strip().lower()
+              if s in ("critical",):
+                return 9.0
+              if s in ("high",):
+                return 7.0
+              if s in ("medium", "moderate"):
+                return 4.0
+              if s in ("low", "info", "informational", "note"):
+                return 0.0
+              if s in ("error",):
+                return 7.0
+              if s in ("warning",):
+                return 4.0
+              try:
+                return float(s)
+              except ValueError:
+                return None
+            if isinstance(val, dict):
+              for k in ("score", "cvss", "cvss_v3", "cvss_v2", "value", "severity"):
+                if k in val:
+                  score = sev_score(val.get(k))
+                  if score is not None:
+                    return score
+              return None
+            if isinstance(val, list):
+              scores = [sev_score(v) for v in val]
+              scores = [s for s in scores if s is not None]
+              return max(scores, default=None)
+            return None
+
+          def is_high(result, rule):
+            for source in (result.get("properties") or {}, rule.get("properties") or {}):
+              score = sev_score(source.get("severity") or source.get("security-severity"))
+              if score is not None:
+                return score >= 7.0
+            level = (result.get("level") or rule.get("defaultConfiguration", {}).get("level") or "").lower()
+            if level in ("critical", "high", "error"):
+              return True
+            return False
+
+          path = "semgrep.sarif"
+          try:
+            with open(path, "r", encoding="utf-8") as fh:
+              data = json.load(fh)
+          except FileNotFoundError:
+            print("Semgrep SARIF not found: semgrep.sarif")
+            sys.exit(1)
+          total = 0
+          high = 0
+          for run in data.get("runs", []) or []:
+            rules = {r.get("id"): r for r in (run.get("tool", {}).get("driver", {}).get("rules", []) or []) if r.get("id")}
+            for result in run.get("results", []) or []:
+              total += 1
+              rule = rules.get(result.get("ruleId"), {})
+              if is_high(result, rule):
+                high += 1
+          print(f"Semgrep SARIF findings: total={total} high_or_critical={high}")
+          if high > 0:
+            sys.exit(1)
+          PY

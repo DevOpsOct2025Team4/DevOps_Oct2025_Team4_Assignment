@@ -37,11 +37,6 @@ on:
         required: false
         default: 5
         type: number
-      fail_on_warning:
-        description: "Fail job on ZAP warnings"
-        required: false
-        default: false
-        type: boolean
     secrets:
       zap_username:
         required: true
@@ -136,7 +131,6 @@ jobs:
         continue-on-error: true
         env:
           STAGING_WEB_URL: ${{ env.STAGING_WEB_URL }}
-          FAIL_ON_WARNING: ${{ inputs.fail_on_warning }}
         run: |
           set -euo pipefail
 
@@ -150,10 +144,7 @@ jobs:
 
           chmod -R a+rwx "$GITHUB_WORKSPACE"
 
-          ZAP_ARGS="-t ${STAGING_WEB_URL} -c .zap/rules.tsv -J report_json.json -w report_md.md -r report_html.html"
-          if [ "${FAIL_ON_WARNING}" != "true" ]; then
-            ZAP_ARGS="${ZAP_ARGS} -I"
-          fi
+          ZAP_ARGS="-t ${STAGING_WEB_URL} -c .zap/rules.tsv -J report_json.json -w report_md.md -r report_html.html -I"
 
           docker pull ghcr.io/zaproxy/zaproxy:stable -q
           docker run --rm --user 0 \
@@ -174,8 +165,30 @@ jobs:
             report_html.html
           if-no-files-found: warn
 
-      - name: Fail if ZAP scan failed
-        if: ${{ steps.zap_scan.outcome == 'failure' }}
+      - name: Fail on High severity ZAP alerts
+        if: ${{ always() }}
+        shell: bash
         run: |
-          echo "ZAP scan failed. See uploaded reports."
-          exit 1
+          set -euo pipefail
+          if [ ! -f report_json.json ]; then
+            echo "ZAP JSON report not found (report_json.json)."
+            exit 1
+          fi
+          python - <<'PY'
+          import json, sys
+          with open("report_json.json", "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+          high = 0
+          total = 0
+          for site in data.get("site", []) or []:
+            for alert in site.get("alerts", []) or []:
+              total += 1
+              riskcode = str(alert.get("riskcode", "")).strip()
+              riskdesc = str(alert.get("riskdesc", "")).lower()
+              risk = str(alert.get("risk", "")).lower()
+              if riskcode == "3" or "high" in riskdesc or risk == "high":
+                high += 1
+          print(f"ZAP alerts: total={total} high={high}")
+          if high > 0:
+            sys.exit(1)
+          PY

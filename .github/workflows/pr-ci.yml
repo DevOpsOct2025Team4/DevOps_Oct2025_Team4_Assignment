@@ -2,9 +2,7 @@ name: PR CI (Deep)
 
 on:
   pull_request:
-    branches: [main, develop]
-  push:
-    branches: [main]
+    branches: develop
 
 jobs:
   run_common:
@@ -12,3 +10,106 @@ jobs:
     uses: ./.github/workflows/ci-common.yml
     with:
       upload_client_artifact: true
+
+  robot_ui:
+    name: Robot UI (PR)
+    runs-on: ubuntu-latest
+    needs: run_common
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+    environment: robot
+    env:
+      ROBOT_BASE_URL: http://localhost:5173
+      ROBOT_BROWSER: headlesschrome
+      ROBOT_USERNAME: ${{ secrets.ROBOT_USERNAME }}
+      ROBOT_PASSWORD: ${{ secrets.ROBOT_PASSWORD }}
+      ROBOT_ADMIN_USERNAME: ${{ secrets.ROBOT_ADMIN_USERNAME }}
+      ROBOT_ADMIN_PASSWORD: ${{ secrets.ROBOT_ADMIN_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install JS dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python deps (server + robot)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r server/requirements.txt
+          python -m pip install robotframework robotframework-seleniumlibrary
+
+      - name: Start DB and backend (Docker)
+        run: |
+          set -euo pipefail
+          docker compose up -d db server
+
+      - name: Wait for backend health
+        run: |
+          set -euo pipefail
+          for i in {1..30}; do
+            if curl -sf http://127.0.0.1:5000/api/health >/dev/null; then
+              echo "Backend is healthy."
+              exit 0
+            fi
+            echo "Waiting for backend... ($i/30)"
+            sleep 5
+          done
+          echo "Backend did not become healthy in time."
+          exit 1
+
+      - name: Start frontend (Vite dev)
+        run: |
+          set -euo pipefail
+          pnpm --filter ./client dev -- --host 0.0.0.0 --port 5173 > /tmp/vite.log 2>&1 &
+          echo $! > /tmp/vite.pid
+
+      - name: Wait for frontend
+        run: |
+          set -euo pipefail
+          for i in {1..30}; do
+            if curl -sf http://127.0.0.1:5173/login >/dev/null; then
+              echo "Frontend is ready."
+              exit 0
+            fi
+            echo "Waiting for frontend... ($i/30)"
+            sleep 2
+          done
+          echo "Frontend did not become ready in time."
+          exit 1
+
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Run Robot tests
+        run: |
+          python -m robot -d robot/results robot/tests
+
+      - name: Upload Robot results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: robot-results-pr
+          path: robot/results
+
+      - name: Cleanup
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -f /tmp/vite.pid ]; then
+            kill "$(cat /tmp/vite.pid)" || true
+          fi
+          docker compose down -v || true

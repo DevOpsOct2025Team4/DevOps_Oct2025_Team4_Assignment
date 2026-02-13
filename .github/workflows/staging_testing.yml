@@ -517,7 +517,6 @@ jobs:
     with:
       spider_minutes: 5
       passive_minutes: 5
-      fail_on_warning: false
     secrets:
       zap_username: ${{ secrets.ZAP_USERNAME }}
       zap_password: ${{ secrets.ZAP_PASSWORD }}
