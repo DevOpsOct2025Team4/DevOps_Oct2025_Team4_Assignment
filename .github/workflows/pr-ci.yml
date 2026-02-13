@@ -72,6 +72,13 @@ jobs:
           MAX_UPLOAD_MB=10
           EOF
 
+      - name: Create client .env for local API
+        run: |
+          set -euo pipefail
+          cat > client/.env <<EOF
+          VITE_API_BASE_URL=http://127.0.0.1:5000/api
+          EOF
+
       - name: Start DB and backend (Docker)
         run: |
           set -euo pipefail
@@ -94,14 +101,25 @@ jobs:
       - name: Start frontend (Vite dev)
         run: |
           set -euo pipefail
-          pnpm --filter ./client dev -- --host 0.0.0.0 --port 5173 > /tmp/vite.log 2>&1 &
+          pnpm --filter ./client dev -- --host 127.0.0.1 --port 5173 --strictPort > /tmp/vite.log 2>&1 &
           echo $! > /tmp/vite.pid
 
       - name: Wait for frontend
         run: |
           set -euo pipefail
+          if [ ! -f /tmp/vite.pid ]; then
+            echo "Vite PID file not found."
+            exit 1
+          fi
+          VITE_PID="$(cat /tmp/vite.pid)"
           for i in {1..30}; do
-            if curl -sf http://127.0.0.1:5173/login >/dev/null; then
+            if ! kill -0 "$VITE_PID" >/dev/null 2>&1; then
+              echo "Vite process exited early."
+              echo "---- vite.log (last 200 lines) ----"
+              tail -n 200 /tmp/vite.log || true
+              exit 1
+            fi
+            if curl -sf http://127.0.0.1:5173/ >/dev/null; then
               echo "Frontend is ready."
               exit 0
             fi
@@ -109,6 +127,8 @@ jobs:
             sleep 2
           done
           echo "Frontend did not become ready in time."
+          echo "---- vite.log (last 200 lines) ----"
+          tail -n 200 /tmp/vite.log || true
           exit 1
 
       - name: Setup Chrome
