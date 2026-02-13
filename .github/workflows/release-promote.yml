@@ -9,9 +9,12 @@ permissions:
   pull-requests: write
 
 jobs:
-  promote:
+  prepare:
     if: contains(github.event.release.tag_name, '-rc.')
     runs-on: ubuntu-latest
+    outputs:
+      pr_number: ${{ steps.pr.outputs.number }}
+      base_tag: ${{ steps.rc.outputs.base_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -64,10 +67,29 @@ jobs:
           fi
           echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
+  only_develop:
+    if: contains(github.event.release.tag_name, '-rc.')
+    needs: prepare
+    name: only_develop
+    uses: ./.github/workflows/main-guard.yml
+    with:
+      pr_number: ${{ needs.prepare.outputs.pr_number }}
+    secrets: inherit
+
+  promote:
+    if: contains(github.event.release.tag_name, '-rc.')
+    needs: [prepare, only_develop]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Merge PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          PR_NUMBER: ${{ needs.prepare.outputs.pr_number }}
         run: |
           git fetch origin develop --tags
           RC_TAG="${{ github.event.release.tag_name }}"
@@ -84,7 +106,7 @@ jobs:
       - name: Create official release tag
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BASE_TAG: ${{ steps.rc.outputs.base_tag }}
+          BASE_TAG: ${{ needs.prepare.outputs.base_tag }}
         run: |
           git fetch origin main --tags
           git checkout main
